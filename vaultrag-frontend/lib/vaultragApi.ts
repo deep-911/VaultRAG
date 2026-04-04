@@ -14,14 +14,20 @@ type AskResponse = {
   context_used: string[];
 };
 
+export type ChatHistoryItem = {
+  role: "user" | "system";
+  text: string;
+};
+
 export async function askVaultRag(
   query: string,
-  user_role: UserRole
+  user_role: UserRole,
+  chat_history: ChatHistoryItem[] = []
 ): Promise<AskResponse> {
   const res = await fetch(`${getApiBase()}/ask`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, user_role }),
+    body: JSON.stringify({ query, user_role, chat_history }),
   });
 
   if (!res.ok) {

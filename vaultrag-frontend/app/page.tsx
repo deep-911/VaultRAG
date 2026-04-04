@@ -7,7 +7,7 @@ import ChatWindow from '../components/ChatWindow';
 import InputBar from '../components/InputBar';
 import SearchingAnimation from '../components/SearchingAnimation';
 import HistoryPanel from '../components/HistoryPanel';
-import type { UserRole } from '../lib/vaultragApi';
+import type { UserRole, ChatHistoryItem } from '../lib/vaultragApi';
 import {
   askVaultRag,
   uploadExecutiveFile,
@@ -197,7 +197,14 @@ export default function App() {
           }
         }
 
-        const { answer, context_used } = await askVaultRag(queryText, userRole);
+        // Build chat history from the conversation (last 4 messages)
+        const currentConv = conversations.find((c) => c.id === capturedConvId);
+        const recentMessages = currentConv ? currentConv.messages : [];
+        const chatHistory: ChatHistoryItem[] = recentMessages
+          .slice(-4)
+          .map((m) => ({ role: m.role, text: m.text }));
+
+        const { answer, context_used } = await askVaultRag(queryText, userRole, chatHistory);
         const noRelevantInfo = isNoRelevantAnswer(answer);
 
         appendSystem({

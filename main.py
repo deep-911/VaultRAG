@@ -226,9 +226,15 @@ class UploadRequest(BaseModel):
         return v
 
 
+class ChatHistoryItem(BaseModel):
+    role: str       # "user" or "system"
+    text: str
+
+
 class SearchRequest(BaseModel):
     query: str
     user_role: str
+    chat_history: list[ChatHistoryItem] = []
 
     @field_validator("user_role")
     @classmethod
@@ -450,10 +456,73 @@ def clean_llm_output(text: str) -> str:
     return t
 
 
-def _build_ask_prompt(context: str, query: str) -> str:
-    """Prompt for /ask: grounded, professional two-part answer when applicable."""
-    return f"""---
+# --------------- Query Rewriter (conversational memory) ---------------
 
+_REWRITE_PROMPT_TEMPLATE = """Given the following conversation history and a new user question, rewrite the user question into a single standalone search query that captures the full intent. Do NOT answer the question. Only output the rewritten query and nothing else.
+
+CONVERSATION HISTORY:
+{history}
+
+LATEST USER QUESTION:
+{question}
+
+REWRITTEN STANDALONE QUERY:"""
+
+MAX_HISTORY_TURNS = 4  # send at most 4 recent messages for rewriting
+
+
+async def _rewrite_query_with_history(
+    query: str,
+    chat_history: list[ChatHistoryItem],
+) -> str:
+    """Use a fast LLM call to resolve pronouns / context from chat history."""
+    if not chat_history:
+        return query
+
+    recent = chat_history[-MAX_HISTORY_TURNS:]
+    history_text = "\n".join(
+        f"{('User' if m.role == 'user' else 'Assistant')}: {m.text[:300]}"
+        for m in recent
+    )
+
+    prompt = _REWRITE_PROMPT_TEMPLATE.format(
+        history=history_text,
+        question=query,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                OLLAMA_URL,
+                json={"model": "phi3", "prompt": prompt, "stream": False},
+            )
+            resp.raise_for_status()
+        rewritten = (resp.json().get("response", "") or "").strip()
+        # Basic sanity: if the LLM returned garbage or empty, fall back
+        if rewritten and 10 < len(rewritten) < 500:
+            logger.info("Query rewritten: %r -> %r", query, rewritten)
+            return rewritten
+    except Exception as exc:
+        logger.warning("Query rewrite failed, using original query: %s", exc)
+
+    return query
+
+
+# --------------- Answer prompt builder ---------------
+
+def _build_ask_prompt(context: str, query: str, chat_history: list[ChatHistoryItem] | None = None) -> str:
+    """Prompt for /ask: grounded, professional two-part answer when applicable."""
+    history_block = ""
+    if chat_history:
+        recent = chat_history[-MAX_HISTORY_TURNS:]
+        lines = []
+        for m in recent:
+            label = "User" if m.role == "user" else "Assistant"
+            lines.append(f"{label}: {m.text[:300]}")
+        history_block = f"\nCONVERSATION HISTORY:\n" + "\n".join(lines) + "\n"
+
+    return f"""---
+{history_block}
 CONTEXT:
 {context}
 
@@ -469,6 +538,7 @@ INSTRUCTIONS:
 * Write in complete, professional sentences—no fragments, bullets, or broken phrasing.
 * Example of good formatting: "The company's revenue is 200 crore INR in Q4. This information is sourced from financial reports."
 * Do not hallucinate beyond context.
+* Use the conversation history above to understand context of follow-up questions.
 
 ---
 
@@ -479,7 +549,15 @@ Answer:
 @app.post("/ask")
 async def ask_question(req: SearchRequest):
     try:
-        documents = await asyncio.to_thread(_rbac_search, req.query, req.user_role)
+        # --- Step 1: Rewrite query using chat history (if any) ---
+        search_query = req.query
+        if req.chat_history:
+            search_query = await _rewrite_query_with_history(
+                req.query, req.chat_history
+            )
+
+        # --- Step 2: RBAC-filtered vector search with the rewritten query ---
+        documents = await asyncio.to_thread(_rbac_search, search_query, req.user_role)
         # Non-empty chunks only; never call the LLM with empty context
         documents = [d for d in documents if d and str(d).strip()]
         if not documents:
@@ -488,8 +566,9 @@ async def ask_question(req: SearchRequest):
                 "context_used": [],
             }
 
+        # --- Step 3: Build history-aware prompt and generate answer ---
         context = _join_context_blocks(documents)
-        prompt = _build_ask_prompt(context, req.query)
+        prompt = _build_ask_prompt(context, req.query, req.chat_history or None)
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
