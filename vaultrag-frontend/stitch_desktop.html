@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VaultRAG | Secure AI Enterprise</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#adcbda",
+                      "primary-fixed-dim": "#00e38f",
+                      "surface-bright": "#37393e",
+                      "on-tertiary-fixed-variant": "#2e4b57",
+                      "outline": "#8f9095",
+                      "on-secondary": "#002d6d",
+                      "secondary-container": "#056ced",
+                      "inverse-surface": "#e2e2e8",
+                      "on-secondary-fixed-variant": "#004299",
+                      "background": "#111318",
+                      "inverse-primary": "#006d42",
+                      "on-secondary-fixed": "#001944",
+                      "surface-container-low": "#1a1c20",
+                      "outline-variant": "#45474b",
+                      "on-primary-container": "#008f58",
+                      "on-primary-fixed": "#002111",
+                      "tertiary-fixed": "#c9e7f7",
+                      "on-surface-variant": "#c6c6cb",
+                      "secondary": "#afc6ff",
+                      "surface-container": "#1e2024",
+                      "on-surface": "#e2e2e8",
+                      "surface-tint": "#00e38f",
+                      "tertiary": "#adcbda",
+                      "inverse-on-surface": "#2f3035",
+                      "on-tertiary": "#163440",
+                      "on-tertiary-container": "#64818f",
+                      "error": "#ffb4ab",
+                      "on-error-container": "#ffdad6",
+                      "primary": "#00e38f",
+                      "surface-container-highest": "#333539",
+                      "on-secondary-container": "#f8f8ff",
+                      "primary-container": "#001509",
+                      "on-primary": "#003920",
+                      "on-tertiary-fixed": "#001f2a",
+                      "tertiary-container": "#00131b",
+                      "error-container": "#93000a",
+                      "primary-fixed": "#53ffab",
+                      "on-primary-fixed-variant": "#005231",
+                      "surface": "#111318",
+                      "secondary-fixed-dim": "#afc6ff",
+                      "secondary-fixed": "#d9e2ff",
+                      "surface-container-high": "#282a2e",
+                      "on-background": "#e2e2e8",
+                      "surface-container-lowest": "#0c0e12",
+                      "surface-dim": "#111318",
+                      "on-error": "#690005",
+                      "surface-variant": "#333539"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Inter"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .glass-panel {
+            background: rgba(51, 53, 57, 0.6);
+            backdrop-filter: blur(32px);
+        }
+        .glow-shadow {
+            box-shadow: 0 0 40px -10px rgba(0, 227, 143, 0.15);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary selection:text-on-primary-fixed overflow-hidden">
+<!-- Top Navigation Bar -->
+<header class="w-full sticky top-0 z-50 bg-[#111318]/80 backdrop-blur-3xl shadow-[0_4px_30px_rgba(0,0,0,0.1)] h-16 flex justify-between items-center px-8 border-none">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary flex items-center justify-center rounded-lg shadow-[0_0_15px_rgba(0,227,143,0.4)]">
+<span class="material-symbols-outlined text-on-primary-fixed text-xl" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+</div>
+<span class="text-2xl font-bold tracking-tighter text-[#e2e2e8] font-headline">VaultRAG</span>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex items-center gap-8 text-sm font-medium">
+<a class="text-[#c6c6cb] hover:text-[#e2e2e8] transition-colors" href="#">Employee</a>
+<a class="text-[#00e38f] border-b-2 border-[#00e38f] pb-1" href="#">Executive</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="p-2 text-[#c6c6cb] hover:bg-[#333539]/50 rounded-full transition-all active:scale-95 duration-200">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="flex items-center gap-2 pl-4 border-l border-outline-variant/30">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+<span class="text-sm font-semibold text-on-surface-variant">Admin-01</span>
+</div>
+</div>
+</div>
+</header>
+<div class="flex h-[calc(100vh-4rem)]">
+<!-- Sidebar Navigation -->
+<aside class="h-full w-64 bg-[#111318] flex flex-col gap-6 py-8 px-6 border-none overflow-y-auto scrollbar-hide">
+<div class="mb-4">
+<div class="flex flex-col gap-1 px-2">
+<span class="text-xs font-['Inter'] uppercase tracking-widest text-[#45474b]">System Sentinel</span>
+<span class="text-sm text-primary font-medium">Secure Session Active</span>
+</div>
+</div>
+<div class="space-y-6">
+<!-- Security Card Component -->
+<div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10 space-y-4">
+<div class="flex flex-col gap-4">
+<div>
+<p class="text-[10px] text-outline uppercase tracking-tighter mb-1">Current Role</p>
+<p class="text-sm font-semibold text-on-surface">Senior Executive</p>
+</div>
+<div>
+<p class="text-[10px] text-outline uppercase tracking-tighter mb-1">Access Level</p>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded border border-primary/20">LEVEL 5</span>
+<span class="text-[10px] text-on-surface-variant">TOP SECRET</span>
+</div>
+</div>
+<div class="pt-2 border-t border-outline-variant/10 flex items-center justify-between">
+<p class="text-xs text-on-surface-variant">Data Filtering</p>
+<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 py-3 px-3 rounded-lg text-[#00e38f] font-bold border-r-2 border-[#00e38f] bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span class="font-['Inter'] text-sm antialiased">Security Status</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-3 rounded-lg text-[#c6c6cb] opacity-70 hover:bg-[#282a2e] transition-colors" href="#">
+<span class="material-symbols-outlined">key</span>
+<span class="font-['Inter'] text-sm antialiased">Access Levels</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-3 rounded-lg text-[#c6c6cb] opacity-70 hover:bg-[#282a2e] transition-colors" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="font-['Inter'] text-sm antialiased">AI Mode: Offline</span>
+</a>
+<a class="flex items-center gap-3 py-3 px-3 rounded-lg text-[#c6c6cb] opacity-70 hover:bg-[#282a2e] transition-colors" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-['Inter'] text-sm antialiased">Audit Logs</span>
+</a>
+</nav>
+</div>
+<button class="mt-auto w-full py-3 bg-error-container/20 text-error border border-error/20 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-error-container/30 transition-all">
+                Emergency Lock
+            </button>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col relative overflow-hidden bg-surface-container-lowest">
+<!-- Background Decoration -->
+<div class="absolute inset-0 overflow-hidden pointer-events-none">
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-1/4 -left-24 w-64 h-64 bg-secondary/5 blur-[100px] rounded-full"></div>
+</div>
+<!-- Chat Container -->
+<div class="flex-1 overflow-y-auto px-6 py-12 scrollbar-hide z-10">
+<div class="max-w-4xl mx-auto space-y-12">
+<!-- Empty State Placeholder (Commented out to show interaction) -->
+<!-- 
+                    <div class="flex flex-col items-center justify-center py-32 text-center">
+                        <div class="w-24 h-24 bg-surface-container-highest rounded-full flex items-center justify-center mb-6 relative">
+                            <span class="material-symbols-outlined text-5xl text-primary" style="font-variation-settings: 'FILL' 1;">security</span>
+                            <div class="absolute -bottom-2 -right-2 w-10 h-10 bg-primary-container border border-primary/30 rounded-full flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-xl">psychology</span>
+                            </div>
+                        </div>
+                        <h2 class="text-4xl font-headline font-bold text-on-surface mb-2">Secure AI Vault</h2>
+                        <p class="text-on-surface-variant text-lg">Your encrypted gateway to corporate knowledge. Ask your question.</p>
+                    </div>
+                    -->
+<!-- AI Message Bubble -->
+<div class="flex flex-col gap-2 max-w-[85%] group">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-6 h-6 bg-primary-container border border-primary/20 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">Secure Intelligence Protocol</span>
+</div>
+<div class="glass-panel p-6 rounded-2xl rounded-tl-none border border-primary/10 glow-shadow relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary/40"></div>
+<p class="text-on-surface leading-relaxed font-light">
+                                Hello Executive. I have analyzed the Q3 Internal Audit reports. Access has been verified via the <span class="text-primary font-medium">Sentinel Veil</span> protocol. Please specify which department's risk profile you would like to review or ask for a comparative summary.
+                            </p>
+<!-- Sources Section -->
+<div class="mt-6 pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-xs text-on-tertiary-container">database</span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-tertiary-container">Sources used (3)</span>
+</div>
+<div class="flex flex-wrap gap-2">
+<div class="px-3 py-1.5 bg-surface-container-highest/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-xs">description</span> Q3_Audit_Summary.pdf
+                                    </div>
+<div class="px-3 py-1.5 bg-surface-container-highest/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-xs">table_chart</span> Risk_Matrix_v4.xlsx
+                                    </div>
+</div>
+</div>
+</div>
+</div>
+<!-- User Message Bubble -->
+<div class="flex flex-col items-end gap-2 max-w-[85%] ml-auto">
+<div class="bg-surface-container-high px-6 py-4 rounded-2xl rounded-tr-none border border-outline-variant/20">
+<p class="text-on-surface text-sm">Review the high-risk entries for the Cyber-Security division from last week's log.</p>
+</div>
+<span class="text-[10px] text-outline pr-2 uppercase">10:42 AM • Encrypted</span>
+</div>
+<!-- AI Message Bubble 2 -->
+<div class="flex flex-col gap-2 max-w-[85%]">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-6 h-6 bg-primary-container border border-primary/20 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">Secure Intelligence Protocol</span>
+</div>
+<div class="glass-panel p-6 rounded-2xl rounded-tl-none border border-primary/10 glow-shadow relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary/40"></div>
+<div class="space-y-4">
+<p class="text-on-surface leading-relaxed font-light">
+                                    I found <span class="text-secondary font-semibold">2 Critical Anomalies</span> in the Cyber-Security logs (Sept 14 - Sept 21):
+                                </p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+<div class="bg-surface-container-lowest/50 p-4 rounded-xl border border-error/10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[10px] bg-error/20 text-error px-2 py-0.5 rounded">CRITICAL</span>
+<span class="text-[10px] text-outline font-mono">ID: 9942-X</span>
+</div>
+<p class="text-sm font-semibold text-on-surface mb-1">Unauthorized RDP Attempt</p>
+<p class="text-xs text-on-surface-variant">Source: Internal subnet 10.0.4.12. Blocked by Sentinel.</p>
+</div>
+<div class="bg-surface-container-lowest/50 p-4 rounded-xl border border-secondary/10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[10px] bg-secondary/20 text-secondary px-2 py-0.5 rounded">INFO</span>
+<span class="text-[10px] text-outline font-mono">ID: 8821-K</span>
+</div>
+<p class="text-sm font-semibold text-on-surface mb-1">Key Rotation Required</p>
+<p class="text-xs text-on-surface-variant">API Endpoint 'Vault-X' requires rotation in 48 hours.</p>
+</div>
+</div>
+</div>
+<!-- Sources Section -->
+<div class="mt-6 pt-4 border-t border-outline-variant/10">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-xs text-on-tertiary-container">database</span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-tertiary-container">Sources used (1)</span>
+</div>
+<div class="flex flex-wrap gap-2">
+<div class="px-3 py-1.5 bg-surface-container-highest/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-xs">shield_with_heart</span> System_Sentinel_Log_Final.json
+                                    </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Section -->
+<div class="p-6 pb-10 z-20">
+<div class="max-w-4xl mx-auto relative group">
+<!-- Glassmorphic Input Field -->
+<div class="glass-panel rounded-2xl border border-outline-variant/20 flex items-center p-2 shadow-2xl focus-within:border-secondary/40 focus-within:ring-1 focus-within:ring-secondary/20 transition-all">
+<button class="p-3 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50 px-4 py-3 font-light text-sm" placeholder="Secure AI Vault — Ask your question..." type="text"/>
+<div class="flex items-center gap-1 pr-2">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-all active:scale-90">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary shadow-[0_0_20px_rgba(0,227,143,0.3)] hover:shadow-[0_0_30px_rgba(0,227,143,0.5)] transition-all active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+<!-- Ambient Glow under input -->
+<div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4/5 h-12 bg-primary/10 blur-[40px] -z-10 rounded-full opacity-50"></div>
+</div>
+<!-- Security Note -->
+<div class="text-center mt-4">
+<p class="text-[10px] text-outline uppercase tracking-widest flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[12px] text-primary">verified_user</span>
+                        AES-256 End-to-End Encryption Active
+                    </p>
+</div>
+</div>
+</main>
+</div>
+<!-- Minimal Footer -->
+<footer class="w-full py-4 flex justify-center items-center gap-8 mt-auto z-50 bg-surface">
+<span class="text-xs font-['Inter'] uppercase tracking-widest text-[#45474b]">© 2024 VaultRAG Enterprise Sentinel. All rights reserved.</span>
+<div class="flex gap-4">
+<a class="text-xs font-['Inter'] uppercase tracking-widest text-[#45474b] hover:text-[#e2e2e8] transition-opacity" href="#">Security Policy</a>
+<a class="text-xs font-['Inter'] uppercase tracking-widest text-[#45474b] hover:text-[#e2e2e8] transition-opacity" href="#">API Access</a>
+<a class="text-xs font-['Inter'] uppercase tracking-widest text-[#45474b] hover:text-[#e2e2e8] transition-opacity" href="#">Support</a>
+</div>
+</footer>
+</body></html>

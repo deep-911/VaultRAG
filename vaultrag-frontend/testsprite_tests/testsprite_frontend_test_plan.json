@@ -1,0 +1,658 @@
+[
+  {
+    "id": "TC001",
+    "title": "Ask a question from welcome suggestion and reopen it from history",
+    "description": "Verifies a user can send a question via a welcome suggestion pill, see loading then a VaultRAG response, and later reopen the same conversation from the history sidebar with messages preserved.",
+    "category": "Conversational RAG search",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click a welcome suggestion pill"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the typing/loading indicator to appear"
+      },
+      {
+        "type": "action",
+        "description": "Wait for a VaultRAG system message to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Select the most recent conversation in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the chat shows both a user message labeled You and a system message labeled VaultRAG for the reopened conversation"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Ask a question by typing and submitting with Enter",
+    "description": "Verifies a user can type a question, submit with the Enter key, see a loading indicator, and then see a VaultRAG response rendered in the chat.",
+    "category": "Conversational RAG search",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the chat input field"
+      },
+      {
+        "type": "action",
+        "description": "Press Enter"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the typing/loading indicator to appear"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a system message labeled VaultRAG appears after submission"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Start a new chat after a completed conversation and keep prior thread in recents",
+    "description": "Verifies that after sending a message and receiving a response, starting a New chat returns the main stage to the welcome/empty state while the prior conversation remains in the recent list.",
+    "category": "Conversation history sidebar",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the chat input field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the question using the send control"
+      },
+      {
+        "type": "action",
+        "description": "Wait for a VaultRAG system message to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Start a new chat from the history sidebar"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the main chat returns to the welcome/empty state and the recent conversations list is still populated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Switch between two conversations and see each thread load",
+    "description": "Verifies a user can create two separate conversations and switch between them from the history sidebar, with the chat window updating to the selected thread.",
+    "category": "Conversation history sidebar",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the chat input field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the question using the send control"
+      },
+      {
+        "type": "action",
+        "description": "Wait for a VaultRAG system message to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Start a new chat from the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Click a welcome suggestion pill"
+      },
+      {
+        "type": "action",
+        "description": "Wait for a VaultRAG system message to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Select the older conversation in the recent list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the chat thread changes to show a different set of messages than the most recent conversation"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Delete the active conversation and fall back to a safe state",
+    "description": "Verifies that deleting the currently open conversation updates the list and the main chat safely falls back to either another conversation or the welcome/empty state.",
+    "category": "Conversation history sidebar",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the chat input field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the question using the send control"
+      },
+      {
+        "type": "action",
+        "description": "Wait for a VaultRAG system message to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Delete the currently selected conversation from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the main chat shows either the welcome/empty state or a different existing conversation thread"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Unlock Executive role via confirmation modal",
+    "description": "Verifies a user can open the Executive unlock flow, confirm in the modal, and see the role chip update to Executive.",
+    "category": "Employee and Executive role (RBAC demo)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the control to unlock Executive mode"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the Executive unlock in the modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the header role chip shows Executive"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Delete a conversation from history and remove it from recents",
+    "description": "Verifies a user can create a conversation, delete it from the history sidebar, and see it removed from the recent list.",
+    "category": "Conversation history sidebar",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click a welcome suggestion pill"
+      },
+      {
+        "type": "action",
+        "description": "Wait for a VaultRAG system message to appear"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "action",
+        "description": "Delete the most recent conversation from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the deleted conversation no longer appears in the recent list"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Switch back to Employee and attachment controls are not available",
+    "description": "Verifies attachment controls follow role permissions by becoming unavailable when switching from Executive back to Employee.",
+    "category": "Executive file upload",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the role switch control"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Executive role"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the role switch in the modal"
+      },
+      {
+        "type": "action",
+        "description": "Open the role switch control"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Employee role"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify file attachment controls are hidden or disabled"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Prevent sending an empty message",
+    "description": "Verifies the app does not send a message when the input is empty and the chat remains in the welcome/empty state.",
+    "category": "Conversational RAG search",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Ensure the chat input is empty"
+      },
+      {
+        "type": "action",
+        "description": "Press Enter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no new user message labeled You appears in the chat"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC010",
+    "title": "Send query with Executive attachments and see them on the user message",
+    "description": "Verifies an Executive can attach PDF/CSV files to a message and the sent user message displays the attachments.",
+    "category": "Executive file upload",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the role switch control"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Executive role"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the role switch in the modal"
+      },
+      {
+        "type": "action",
+        "description": "Attach one PDF file to the message"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the message input"
+      },
+      {
+        "type": "action",
+        "description": "Submit the message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the latest user message shows attached file(s)"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC011",
+    "title": "Switch back to Employee role from Executive",
+    "description": "Verifies that after switching to Executive, a user can return to Employee and the role chip updates accordingly.",
+    "category": "Employee and Executive role (RBAC demo)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the control to unlock Executive mode"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the Executive unlock in the modal"
+      },
+      {
+        "type": "action",
+        "description": "Click the control to use the Employee role"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the header role chip shows Employee"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC012",
+    "title": "Toggle theme to dark and back to light",
+    "description": "Verifies the theme toggle switches between light and dark and the toggle’s accessible label reflects the current state.",
+    "category": "Theme toggle",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the theme toggle control"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the application theme changes to the opposite mode"
+      },
+      {
+        "type": "action",
+        "description": "Click the theme toggle control again"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the application theme returns to the original mode"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC013",
+    "title": "Open history sidebar when there is no prior activity",
+    "description": "Verifies the history sidebar can be opened on a fresh session and displays the appropriate empty state when there are no conversations.",
+    "category": "Conversation history sidebar",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the history sidebar"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state is displayed for the conversation list"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC014",
+    "title": "Attach multiple files in Executive mode and keep them associated with the sent message",
+    "description": "Verifies multiple PDF/CSV attachments can be added in Executive mode and appear on the resulting user message bubble.",
+    "category": "Executive file upload",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the role switch control"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Executive role"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the role switch in the modal"
+      },
+      {
+        "type": "action",
+        "description": "Attach one PDF file to the message"
+      },
+      {
+        "type": "action",
+        "description": "Attach one CSV file to the message"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the message input"
+      },
+      {
+        "type": "action",
+        "description": "Submit the message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the latest user message shows multiple attachments"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC015",
+    "title": "Cancel Executive unlock and remain in Employee with no attachment access",
+    "description": "Verifies dismissing the Executive unlock confirmation leaves the user in Employee role and does not expose attachment functionality.",
+    "category": "Executive file upload",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the role switch control"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Executive role"
+      },
+      {
+        "type": "action",
+        "description": "Cancel the role switch in the modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the role indicator remains Employee"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify file attachment controls are hidden or disabled"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC016",
+    "title": "Remove an added attachment before sending so it does not appear on the message",
+    "description": "Verifies a user can undo an attachment selection before submitting and the sent message does not show the removed file.",
+    "category": "Executive file upload",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Open the role switch control"
+      },
+      {
+        "type": "action",
+        "description": "Choose the Executive role"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the role switch in the modal"
+      },
+      {
+        "type": "action",
+        "description": "Attach one PDF file to the message"
+      },
+      {
+        "type": "action",
+        "description": "Remove the selected attachment from the composer"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the message input"
+      },
+      {
+        "type": "action",
+        "description": "Submit the message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the latest user message shows no attachments"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC017",
+    "title": "Theme toggle is keyboard-operable",
+    "description": "Verifies a keyboard-only user can focus the theme toggle and activate it to change theme.",
+    "category": "Theme toggle",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Press Tab until the theme toggle control is focused"
+      },
+      {
+        "type": "action",
+        "description": "Press Enter to activate the focused theme toggle"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the application theme changes to the opposite mode"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC018",
+    "title": "TTS toggle can be enabled before asking a question",
+    "description": "Verifies voice output can be toggled on via the UI before submitting a query and the UI reflects it as enabled.",
+    "category": "Voice input and TTS (browser-dependent)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Toggle voice output on"
+      },
+      {
+        "type": "action",
+        "description": "Fill a short question into the message input"
+      },
+      {
+        "type": "action",
+        "description": "Submit the message"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify voice output is shown as enabled for replies"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC019",
+    "title": "Theme toggle updates its aria-label when switching modes",
+    "description": "Verifies the theme toggle’s aria-label changes to reflect the action/state after toggling.",
+    "category": "Theme toggle",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Inspect the theme toggle control accessibility label"
+      },
+      {
+        "type": "action",
+        "description": "Click the theme toggle control"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the theme toggle accessibility label has changed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC020",
+    "title": "Microphone control is conditionally available based on browser support",
+    "description": "Verifies the microphone input control is either present (when supported) or absent (when not supported) without breaking the input bar UI.",
+    "category": "Voice input and TTS (browser-dependent)",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the input bar to render"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the microphone control is either visible or not shown depending on browser capability"
+      }
+    ],
+    "priority": "Low"
+  }
+]
