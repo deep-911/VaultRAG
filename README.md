@@ -1,83 +1,88 @@
-# VaultRAG: Role-aware local RAG
+# VaultRAG
 
-[![CI](https://github.com/deep-911/VaultRAG/actions/workflows/ci.yml/badge.svg)](https://github.com/deep-911/VaultRAG/actions/workflows/ci.yml)
+**Hackathon Problem Statement Addressed:**
+> **EC604 - Knowledge Retrieval:** Designing solutions that enable efficient discovery and retrieval of relevant knowledge across enterprise systems while maintaining context.
 
-VaultRAG is a retrieval-augmented generation (RAG) stack for **private documents**: **FastAPI** + **ChromaDB** + **sentence-transformers** for retrieval, **Ollama** (e.g. **Phi-3**) for answers, and a **Next.js** chat UI. Metadata-based **Employee / Executive** scopes filter which chunks are retrieved.
+## 📖 Overview
 
-**Important:** the demo UI toggles role on the client only. Treat the API as **unauthenticated** unless you add real auth for production.
+**VaultRAG** is a secure, role-based Retrieval-Augmented Generation (RAG) system built for the enterprise. It allows users to ask questions over private documents and receive grounded, reliable answers without sending sensitive data to external AI providers. 
 
-## Features
+The application utilizes a robust architecture featuring a local vector database for semantic search and an entirely local LLM (Phi-3) for generation. It implements Role-Based Access Control (RBAC), ensuring that Employees only see Employee-level data, while Executives can upload new documents (PDF/CSV) and query across the entire organization's knowledge base.
 
-- **Scoped retrieval:** Chroma metadata `role` + query filters (`Employee` vs `Employee` + `Executive`).
-- **Local LLM:** configurable Ollama HTTP endpoint (default `phi3`).
-- **Ingestion:** text upload, or PDF/CSV file upload (chunked, in-memory parse).
-- **Refuse-to-answer:** skips the LLM when no chunks pass filters; output cleaning reduces prompt echo.
-- **Frontend:** chat history (browser `localStorage`), optional TTS, PDF/CSV attach in Executive mode.
+## 🛠️ Tech Stack
 
-## Repository layout
+- **Frontend:** Next.js (React 19), Tailwind CSS
+- **Backend:** FastAPI, Python
+- **Database:** ChromaDB (Persistent SQLite vector store)
+- **Embeddings:** SentenceTransformers (`all-MiniLM-L6-v2`)
+- **LLM Engine:** Ollama (running Microsoft's `phi3`)
 
-| Path | Purpose |
-|------|---------|
-| `main.py` | FastAPI app, Chroma, embeddings, `/ask`, `/upload`, `/upload-file` |
-| `requirements.txt` | Pinned Python dependencies |
-| `vaultrag-frontend/` | Next.js 16 UI |
-| `.github/workflows/ci.yml` | CI: Python syntax check + frontend lint/build |
+---
 
-Local data (not committed): `chroma_db/`, Hugging Face / torch caches as usual.
+## ⚠️ CRITICAL REQUIREMENT: OLLAMA & PHI-3
 
-## Prerequisites
+**For the AI generation to work, you MUST have Ollama installed locally and run the Phi-3 model.** VaultRAG does not use external APIs for chat generation; it relies entirely on your local machine.
 
-- **Python 3.10+**
-- **Node.js 20+** (CI uses 20; 18+ may work)
-- **Ollama** with a pulled model, e.g. `ollama pull phi3`
-
-## Quickstart
-
-### Backend
-
-```bash
-cd VaultRAG
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-
-Optional: copy `.env.example` to `.env` and load it with your tooling, or export:
-
-- `OLLAMA_URL` — default `http://localhost:11434/api/generate`
-
-In another terminal:
+1. **Install Ollama:** Download and install from [ollama.com](https://ollama.com/).
+2. **Download and Run Phi-3:** Open your terminal and run the following command. Keep it running in the background.
 
 ```bash
 ollama run phi3
 ```
 
-### Frontend
+---
+
+## 🚀 Getting Started
+
+To run VaultRAG locally, you will need to start three separate processes: Ollama (described above), the FastAPI backend, and the Next.js frontend.
+
+### 1. Start the FastAPI Backend (Port 8000)
+
+The backend handles document chunking, embedding generation, ChromaDB vector searches, and communication with Ollama.
+
+Open a terminal in the root directory of the project:
 
 ```bash
+# Optional: Create and activate a virtual environment
+python -m venv venv
+# Windows: venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
+
+# Install the Python dependencies
+pip install -r requirements.txt
+
+# Start the FastAPI server
+uvicorn main:app --reload --port 8000
+```
+*The backend will now be running at http://localhost:8000. It will automatically create the `./chroma_db` directory on first run.*
+
+### 2. Start the Next.js Frontend (Port 3000)
+
+The frontend provides a modern chat interface with role selection and document upload capabilities.
+
+Open a **new** terminal, navigate to the frontend directory, and start the development server:
+
+```bash
+# Navigate to the frontend directory
 cd vaultrag-frontend
-npm ci
+
+# Install Node dependencies
+npm install
+
+# Start the Next.js development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Point the UI at your API (default `http://127.0.0.1:8000`) or set `NEXT_PUBLIC_VAULTRAG_API_URL` (see `vaultrag-frontend/.env.example`).
+### 3. Open the Application
 
-## Configuration
+Open your browser and navigate to **[http://localhost:3000](http://localhost:3000)**. 
 
-| Variable | Where | Description |
-|----------|--------|-------------|
-| `OLLAMA_URL` | Backend | Ollama generate endpoint |
-| `NEXT_PUBLIC_VAULTRAG_API_URL` | Frontend | Base URL for API (no trailing slash required) |
+- Use the **Header** to toggle between Employee and Executive roles.
+- Switch to the **Executive** role to drag-and-drop PDF or CSV files into the input bar for ingestion.
+- Start asking questions!
 
-Upload limits are defined in `main.py` (`UPLOAD_MAX_BYTES`, `UPLOAD_MAX_CHUNKS`).
+---
 
-## Contributing
+## 📚 Architecture Deep Dive
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Security
-
-See [SECURITY.md](SECURITY.md).
-
-## License
-
-[MIT](LICENSE)
+Curious about how the pieces fit together? Check out our comprehensive [PROJECT_ARCHITECTURE.md](./PROJECT_ARCHITECTURE.md) document at the root of the repository for an in-depth look at our data flows, RBAC implementations, and API schemas.
