@@ -9,4 +9,5 @@ export type ChatMessage = {
   attachments?: File[];
   sources?: ContextSnippet[];
   noRelevantInfo?: boolean;
+  isStreaming?: boolean;
 };

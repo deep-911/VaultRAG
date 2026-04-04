@@ -8,9 +8,10 @@ import InputBar from '../components/InputBar';
 import SearchingAnimation from '../components/SearchingAnimation';
 import HistoryPanel from '../components/HistoryPanel';
 import SystemStatus from '../components/SystemStatus';
+import type { ChatMessage } from '../lib/chatTypes';
 import type { UserRole, ChatHistoryItem } from '../lib/vaultragApi';
 import {
-  askVaultRag,
+  askVaultRagStream,
   uploadExecutiveFile,
   isNoRelevantAnswer,
 } from '../lib/vaultragApi';
@@ -21,14 +22,6 @@ function generateTitle(text: string) {
   const clean = text.trim();
   return clean.length > 40 ? clean.slice(0, 40) + '…' : clean;
 }
-
-type ChatMessage = {
-  role: 'user' | 'system';
-  text: string;
-  attachments?: File[];
-  sources?: string[];
-  noRelevantInfo?: boolean;
-};
 
 export default function App() {
   const [conversations, setConversations] = useState<
@@ -73,7 +66,7 @@ export default function App() {
     }
     if (messages.length > lastMessageCountRef.current) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg && lastMsg.role === 'system' && lastMsg.text) {
+      if (lastMsg && lastMsg.role === 'system' && lastMsg.text && !lastMsg.isStreaming) {
         const cleanText = lastMsg.text
           .replace(/\*\*/g, '')
           .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}]/gu, '')
@@ -142,6 +135,7 @@ export default function App() {
       setIsTyping(true);
 
       const capturedConvId = convId;
+
       const appendSystem = (msg: ChatMessage) => {
         setConversations((prev) =>
           prev.map((c) =>
@@ -149,6 +143,23 @@ export default function App() {
               ? { ...c, messages: [...c.messages, msg] }
               : c
           )
+        );
+      };
+
+      /** Update the last streaming message in the active conversation. */
+      const updateStreamingMsg = (updater: (msg: ChatMessage) => ChatMessage) => {
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== capturedConvId) return c;
+            const msgs = [...c.messages];
+            for (let i = msgs.length - 1; i >= 0; i--) {
+              if (msgs[i].isStreaming) {
+                msgs[i] = updater({ ...msgs[i] });
+                break;
+              }
+            }
+            return { ...c, messages: msgs };
+          })
         );
       };
 
@@ -205,28 +216,80 @@ export default function App() {
           .slice(-4)
           .map((m) => ({ role: m.role, text: m.text }));
 
-        const { answer, context_used } = await askVaultRag(queryText, userRole, chatHistory);
-        const noRelevantInfo = isNoRelevantAnswer(answer);
-
+        // --- Add an empty streaming message placeholder ---
         appendSystem({
           role: 'system',
-          text: answer,
-          sources:
-            context_used && context_used.length > 0 ? context_used : undefined,
-          noRelevantInfo,
+          text: '',
+          isStreaming: true,
+        });
+
+        // --- Consume the streaming response ---
+        await askVaultRagStream(queryText, userRole, chatHistory, {
+          onToken: (token) => {
+            updateStreamingMsg((m) => ({ ...m, text: m.text + token }));
+          },
+          onContext: (context) => {
+            updateStreamingMsg((m) => ({
+              ...m,
+              sources: context.length > 0 ? context : undefined,
+            }));
+          },
+          onDone: () => {
+            updateStreamingMsg((m) => ({
+              ...m,
+              isStreaming: false,
+              noRelevantInfo: isNoRelevantAnswer(m.text),
+            }));
+          },
+          onError: (error) => {
+            updateStreamingMsg((m) => ({
+              ...m,
+              isStreaming: false,
+              text: m.text || `**Error:** ${error.message}`,
+            }));
+          },
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        appendSystem({
-          role: 'system',
-          text: `**Could not reach the VaultRAG API.**\n\n${msg}\n\nStart the backend: \`uvicorn main:app --reload --port 8000\`. For answers, run Ollama with the **phi3** model.`,
-          noRelevantInfo: false,
+        // If the streaming message was already added, update it.
+        // Otherwise append a new error message.
+        setConversations((prev) => {
+          const conv = prev.find((c) => c.id === capturedConvId);
+          const hasStreaming = conv?.messages.some((m) => m.isStreaming);
+          if (hasStreaming) {
+            return prev.map((c) => {
+              if (c.id !== capturedConvId) return c;
+              return {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.isStreaming
+                    ? { ...m, isStreaming: false, text: `**Could not reach the VaultRAG API.**\n\n${msg}\n\nStart the backend: \`uvicorn main:app --reload --port 8000\`. For answers, run Ollama with the **phi3** model.` }
+                    : m
+                ),
+              };
+            });
+          }
+          return prev.map((c) =>
+            c.id === capturedConvId
+              ? {
+                  ...c,
+                  messages: [
+                    ...c.messages,
+                    {
+                      role: 'system' as const,
+                      text: `**Could not reach the VaultRAG API.**\n\n${msg}\n\nStart the backend: \`uvicorn main:app --reload --port 8000\`. For answers, run Ollama with the **phi3** model.`,
+                      noRelevantInfo: false,
+                    },
+                  ],
+                }
+              : c
+          );
         });
       } finally {
         setIsTyping(false);
       }
     },
-    [activeConvId, attachedFiles, userRole]
+    [activeConvId, attachedFiles, userRole, conversations]
   );
 
   const handleSuggestionClick = useCallback(
@@ -269,6 +332,9 @@ export default function App() {
     [activeConvId]
   );
 
+  // Hide the full-screen searching animation once streaming has started
+  const hasStreamingMessage = messages.some((m) => m.isStreaming);
+
   return (
     <>
       <AmbientBackground />
@@ -285,7 +351,7 @@ export default function App() {
       />
 
       <div className={`app-shell ${sidebarOpen ? 'app-shell--sidebar-open' : ''}`}>
-        {isTyping && <SearchingAnimation />}
+        {isTyping && !hasStreamingMessage && <SearchingAnimation />}
         <Header userRole={userRole} onUserRoleChange={(role) => setUserRole(role as UserRole)} onToggleSidebar={() => setSidebarOpen((v) => !v)} />
         <main className="app-layout">
           <ChatWindow

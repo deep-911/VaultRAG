@@ -11,21 +11,35 @@ function getApiBase(): string {
   return API_BASE.replace(/\/$/, "");
 }
 
-type AskResponse = {
-  answer: string;
-  context_used: ContextSnippet[];
-};
-
 export type ChatHistoryItem = {
   role: "user" | "system";
   text: string;
 };
 
-export async function askVaultRag(
+/* ------------------------------------------------------------------ */
+/*  Streaming /ask consumer                                           */
+/* ------------------------------------------------------------------ */
+
+const CONTEXT_DELIMITER = "\n\n__VAULTRAG_CONTEXT__\n";
+
+export type StreamCallbacks = {
+  onToken: (token: string) => void;
+  onContext: (context: ContextSnippet[]) => void;
+  onDone: () => void;
+  onError: (error: Error) => void;
+};
+
+/**
+ * Consume the streaming /ask endpoint.
+ * Text tokens are forwarded via `onToken`, and the final
+ * JSON context array is forwarded via `onContext`.
+ */
+export async function askVaultRagStream(
   query: string,
   user_role: UserRole,
-  chat_history: ChatHistoryItem[] = []
-): Promise<AskResponse> {
+  chat_history: ChatHistoryItem[] = [],
+  callbacks: StreamCallbacks,
+): Promise<void> {
   const res = await fetch(`${getApiBase()}/ask`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,8 +62,64 @@ export async function askVaultRag(
     throw new Error(detail || `Request failed (${res.status})`);
   }
 
-  return res.json() as Promise<AskResponse>;
+  if (!res.body) {
+    throw new Error("Response body is not readable");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = "";
+  let emittedLength = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      fullText += decoder.decode(value, { stream: true });
+
+      // Check whether the delimiter has arrived in the buffer
+      const delimIdx = fullText.indexOf(CONTEXT_DELIMITER);
+      if (delimIdx !== -1) {
+        // Emit any remaining text before the delimiter
+        if (delimIdx > emittedLength) {
+          callbacks.onToken(fullText.slice(emittedLength, delimIdx));
+        }
+        // Parse the context JSON that follows the delimiter
+        const jsonStr = fullText.slice(delimIdx + CONTEXT_DELIMITER.length);
+        try {
+          const context = JSON.parse(jsonStr) as ContextSnippet[];
+          callbacks.onContext(context);
+        } catch {
+          /* context JSON may be incomplete — ignore */
+        }
+        emittedLength = fullText.length;
+        break;
+      }
+
+      // Emit text safely — hold back delimiter-length chars to avoid
+      // emitting a partial delimiter that we'd later need to retract.
+      const safeUpTo = fullText.length - CONTEXT_DELIMITER.length;
+      if (safeUpTo > emittedLength) {
+        callbacks.onToken(fullText.slice(emittedLength, safeUpTo));
+        emittedLength = safeUpTo;
+      }
+    }
+
+    // Stream ended — handle any remaining buffer
+    if (fullText.indexOf(CONTEXT_DELIMITER) === -1 && fullText.length > emittedLength) {
+      callbacks.onToken(fullText.slice(emittedLength));
+    }
+
+    callbacks.onDone();
+  } catch (e) {
+    callbacks.onError(e instanceof Error ? e : new Error(String(e)));
+  }
 }
+
+/* ------------------------------------------------------------------ */
+/*  File upload                                                       */
+/* ------------------------------------------------------------------ */
 
 export async function uploadExecutiveFile(file: File): Promise<void> {
   const fd = new FormData();
@@ -75,6 +145,10 @@ export async function uploadExecutiveFile(file: File): Promise<void> {
     throw new Error(detail || `Upload failed (${res.status})`);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
 
 const NO_RELEVANT_ANSWER = "No relevant information found.";
 

@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import re
 import uuid
@@ -8,6 +9,7 @@ from io import BytesIO, StringIO
 
 import httpx
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 import chromadb
@@ -559,47 +561,68 @@ Answer:
 """
 
 
+_CONTEXT_STREAM_DELIMITER = "\n\n__VAULTRAG_CONTEXT__\n"
+
+
 @app.post("/ask")
 async def ask_question(req: SearchRequest):
+    # --- Step 1 & 2 run before we return the StreamingResponse so
+    #     validation / search errors become normal HTTP errors. ---
     try:
-        # --- Step 1: Rewrite query using chat history (if any) ---
         search_query = req.query
         if req.chat_history:
             search_query = await _rewrite_query_with_history(
                 req.query, req.chat_history
             )
 
-        # --- Step 2: RBAC-filtered vector search with the rewritten query ---
         documents = await asyncio.to_thread(_rbac_search, search_query, req.user_role)
-        # Non-empty chunks only; never call the LLM with empty context
         documents = [d for d in documents if d and d.get("text", "").strip()]
-        if not documents:
-            return {
-                "answer": "No relevant information found.",
-                "context_used": [],
-            }
-
-        # --- Step 3: Build history-aware prompt and generate answer ---
-        context = _join_context_blocks(documents)
-        prompt = _build_ask_prompt(context, req.query, req.chat_history or None)
-
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                OLLAMA_URL,
-                json={"model": "phi3", "prompt": prompt, "stream": False},
-            )
-            response.raise_for_status()
-            
-        raw = response.json().get("response", "") or ""
-        answer = clean_llm_output(raw)
-        return {"answer": answer, "context_used": documents}
-
-    except httpx.ConnectError:
-        logger.error("Could not connect to Ollama")
-        raise HTTPException(
-            status_code=503,
-            detail="Ollama is not running. Start it with 'ollama serve'.",
-        )
     except Exception as e:
-        logger.error(f"Error in ask_question: {e}")
+        logger.error(f"Error in ask_question pre-processing: {e}")
         raise HTTPException(status_code=500, detail="Internal server error during ask")
+
+    # --- No matching documents: short-circuit with a tiny stream ---
+    if not documents:
+        async def _empty_stream():
+            yield "No relevant information found."
+            yield _CONTEXT_STREAM_DELIMITER
+            yield json.dumps([])
+
+        return StreamingResponse(_empty_stream(), media_type="text/plain")
+
+    # --- Step 3: Build prompt, then stream Ollama token-by-token ---
+    context = _join_context_blocks(documents)
+    prompt = _build_ask_prompt(context, req.query, req.chat_history or None)
+
+    async def _llm_stream():
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream(
+                    "POST",
+                    OLLAMA_URL,
+                    json={"model": "phi3", "prompt": prompt, "stream": True},
+                ) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            token = chunk.get("response", "")
+                            if token:
+                                yield token
+                        except json.JSONDecodeError:
+                            continue
+        except httpx.ConnectError:
+            logger.error("Could not connect to Ollama during streaming")
+            yield "\n\n**Error:** Could not connect to Ollama. Start it with `ollama serve`."
+        except Exception as e:
+            logger.error(f"Streaming LLM error: {e}")
+            yield f"\n\n**Error:** {e}"
+
+        # --- Final chunk: source metadata for the frontend ---
+        yield _CONTEXT_STREAM_DELIMITER
+        yield json.dumps(documents)
+
+    return StreamingResponse(_llm_stream(), media_type="text/plain")

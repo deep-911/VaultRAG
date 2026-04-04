@@ -3475,3 +3475,30 @@ body {
   flex-shrink: 0;
   filter: drop-shadow(0 0 5px rgba(110, 231, 183, 0.6));
 }
+
+/* ---------- Streaming Cursor ---------- */
+.streaming-cursor::after {
+  content: '▊';
+  display: inline;
+  color: var(--color-primary, #818cf8);
+  animation: cursor-blink 0.8s step-end infinite;
+  margin-left: 2px;
+  font-weight: 400;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streaming-placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 13px;
+  animation: placeholder-pulse 2s ease-in-out infinite;
+}
+
+@keyframes placeholder-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}

@@ -78,6 +78,8 @@ export default function ChatWindow({
     );
   }
 
+  const hasStreamingMessage = messages.some((m) => m.isStreaming);
+
   return (
     <div className="chat-window" ref={scrollRef}>
       {messages.map((msg, idx) => (
@@ -104,10 +106,14 @@ export default function ChatWindow({
                     model returned no grounded answer.
                   </div>
                 )}
-                <div className="chat-bubble__content">
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                <div className={`chat-bubble__content${msg.isStreaming ? ' streaming-cursor' : ''}`}>
+                  {msg.isStreaming && !msg.text ? (
+                    <span className="streaming-placeholder">Generating response…</span>
+                  ) : (
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  )}
                 </div>
-                {msg.sources && msg.sources.length > 0 && (
+                {!msg.isStreaming && msg.sources && msg.sources.length > 0 && (
                   <div className="chat-bubble__sources">
                     <div className="chat-bubble__sources-label">
                       Sources Used
@@ -127,7 +133,7 @@ export default function ChatWindow({
           )}
         </div>
       ))}
-      {isTyping && <TypingIndicator />}
+      {isTyping && !hasStreamingMessage && <TypingIndicator />}
     </div>
   );
 }
