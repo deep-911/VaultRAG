@@ -7,7 +7,6 @@ import ChatWindow from '../components/ChatWindow';
 import InputBar from '../components/InputBar';
 import SearchingAnimation from '../components/SearchingAnimation';
 import HistoryPanel from '../components/HistoryPanel';
-import SystemStatus from '../components/SystemStatus';
 import type { ChatMessage } from '../lib/chatTypes';
 import type { UserRole, ChatHistoryItem } from '../lib/vaultragApi';
 import {
@@ -164,17 +163,10 @@ export default function App() {
       };
 
       try {
-        if (hasFiles && userRole !== 'Executive') {
-          appendSystem({
-            role: 'system',
-            text:
-              '**Upload skipped:** PDF and CSV go to the API only in **Executive** mode (unlock in the header). Your question below is still sent to `/ask` without ingesting these files.',
-            noRelevantInfo: false,
-          });
-        }
+
 
         let queryText = text.trim();
-        if (!queryText && hasFiles && userRole === 'Executive') {
+        if (!queryText && hasFiles) {
           queryText =
             'What are the main points in the document I just uploaded?';
         }
@@ -182,18 +174,18 @@ export default function App() {
         if (!queryText) {
           appendSystem({
             role: 'system',
-            text: 'Add a question, or attach a PDF/CSV in Executive mode so we can ingest and then ask about it.',
+            text: 'Add a question, or attach a PDF/CSV/TXT so we can ingest and then ask about it.',
             noRelevantInfo: false,
           });
           setIsTyping(false);
           return;
         }
 
-        if (hasFiles && userRole === 'Executive') {
+        if (hasFiles) {
           const errors: string[] = [];
           for (const f of currentAttachments) {
             try {
-              await uploadExecutiveFile(f);
+              await uploadExecutiveFile(f, userRole);
             } catch (e) {
               errors.push(
                 `${f.name}: ${e instanceof Error ? e.message : String(e)}`
@@ -368,18 +360,13 @@ export default function App() {
               onRemoveFile={handleRemoveFile}
               ttsEnabled={ttsEnabled}
               onToggleTts={() => setTtsEnabled((v) => !v)}
-              attachDisabled={userRole !== 'Executive'}
-              attachTitle={
-                userRole === 'Executive'
-                  ? 'Attach PDF or CSV (ingested as Executive-tagged chunks)'
-                  : 'Unlock Executive mode to attach PDF or CSV'
-              }
+              attachDisabled={false}
+              attachTitle="Attach a document (PDF, CSV, TXT) - tagged to your current role"
               userRole={userRole}
               onUserRoleChange={(role) => setUserRole(role as UserRole)}
             />
           </div>
         </main>
-        <SystemStatus />
       </div>
     </>
   );

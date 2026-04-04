@@ -1,88 +1,69 @@
-# VaultRAG
+# VaultRAG: Zero-Trust Private Document Intelligence 🔐 
 
-**Hackathon Problem Statement Addressed:**
-> **EC604 - Knowledge Retrieval:** Designing solutions that enable efficient discovery and retrieval of relevant knowledge across enterprise systems while maintaining context.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
 
-## 📖 Overview
+VaultRAG is an enterprise-grade Retrieval-Augmented Generation (RAG) system built from the ground up for strict environments where sensitive intellectual property cannot leave the local network. 
 
-**VaultRAG** is a secure, role-based Retrieval-Augmented Generation (RAG) system built for the enterprise. It allows users to ask questions over private documents and receive grounded, reliable answers without sending sensitive data to external AI providers. 
+## 🚨 The Core Problem
+Most modern AI tools require organizations to ship proprietary data to third-party cloud SaaS products via web APIs. In heavily regulated industries (Finance, Legal, Healthcare, Executive Management), throwing confidential documents over the wall is totally unacceptable. Even internal RAG solutions often struggle with granular access—engineers gain access to executive payroll data simply because an embedding matched their query.
 
-The application utilizes a robust architecture featuring a local vector database for semantic search and an entirely local LLM (Phi-3) for generation. It implements Role-Based Access Control (RBAC), ensuring that Employees only see Employee-level data, while Executives can upload new documents (PDF/CSV) and query across the entire organization's knowledge base.
+## 🛡️ The Solution
+VaultRAG keeps your data yours. It is a completely **local, GPU-accelerated RAG pipeline** enforcing **Scoped Role-Based Access Control (RBAC)** down to the vector chunk level. Every document uploaded is strictly tagged with its organizational scope. Every user question is securely authenticated and isolated against the vector database, guaranteeing that an `Employee` can never accidentally (or maliciously) extract `Executive` intelligence.
 
-## 🛠️ Tech Stack
+## 🚀 Technical Deep Dive (The Architecture)
 
-- **Frontend:** Next.js (React 19), Tailwind CSS
-- **Backend:** FastAPI, Python
-- **Database:** ChromaDB (Persistent SQLite vector store)
-- **Embeddings:** SentenceTransformers (`all-MiniLM-L6-v2`)
-- **LLM Engine:** Ollama (running Microsoft's `phi3`)
+VaultRAG isn't a naive wrapper—it is heavily hardened for enterprise scalability and accuracy.
 
----
+- **Genius Retrieval Ecosystem:** We abandoned naive keyword matching and standard vector similarity boundaries for neural relevancy. By pre-fetching top candidates from ChromaDB and piping them through a live, GPU-accelerated **Cross-Encoder Model (`ms-marco-MiniLM-L-6-v2`)**, we dynamically rerank document hits to calculate absolute relevancy scores, eliminating context hallucinations.
+- **Asynchronous OOM-Protected Ingestion:** To prevent catastrophic `Out-Of-Memory` faults during heavy traffic, file parsing relies on chunked buffer reads bounded safely beneath 25MB limits. Process-heavy embedding blocks are entirely stripped out of the HTTP thread and securely offloaded to FastAPI `BackgroundTasks`. 
+- **Zero-Trust Bearer Authentication:** Built entirely on Zero-Trust principles via strict `HTTPBearer` authorization. The backend requires verified tokens—refusing any fallback state or wildcard CORS vulnerabilities.
+- **Bi-Modal Streaming Pipeline:** The application doesn't just read an LLM stream; it multiplexes one. Text tokens stream immediately to the frontend to guarantee minimal Time-to-First-Token (TTFT), followed by a JSON payload cleanly delivering exact citation metadata.
 
-## ⚠️ CRITICAL REQUIREMENT: OLLAMA & PHI-3
+## 🛠️ Setup Guide
 
-**For the AI generation to work, you MUST have Ollama installed locally and run the Phi-3 model.** VaultRAG does not use external APIs for chat generation; it relies entirely on your local machine.
+Get VaultRAG up and running securely on your local network in minutes.
 
-1. **Install Ollama:** Download and install from [ollama.com](https://ollama.com/).
-2. **Download and Run Phi-3:** Open your terminal and run the following command. Keep it running in the background.
+### 1. Prerequisites
+- **Python 3.11+**
+- **Node.js 18+**
+- **Ollama** (running locally with `phi3` installed: `ollama run phi3`)
 
+### 2. Backend Initialization (FastAPI)
 ```bash
-ollama run phi3
-```
+# 1. Navigate to the backend root
+cd VaultRAG
 
----
-
-## 🚀 Getting Started
-
-To run VaultRAG locally, you will need to start three separate processes: Ollama (described above), the FastAPI backend, and the Next.js frontend.
-
-### 1. Start the FastAPI Backend (Port 8000)
-
-The backend handles document chunking, embedding generation, ChromaDB vector searches, and communication with Ollama.
-
-Open a terminal in the root directory of the project:
-
-```bash
-# Optional: Create and activate a virtual environment
+# 2. Setup your virtual environment
 python -m venv venv
-# Windows: venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
+source venv/bin/activate  # (or `venv\Scripts\activate` on Windows)
 
-# Install the Python dependencies
+# 3. Install requirements
 pip install -r requirements.txt
 
-# Start the FastAPI server
-python -m uvicorn main:app --reload
+# 4. Set secure environment variables and launch
+export EXECUTIVE_SECRET_TOKEN="your-secure-executive-token"
+export EMPLOYEE_SECRET_TOKEN="your-secure-employee-token"
+export FRONTEND_URL="http://localhost:3000"
+
+python -m uvicorn main:app --port 8000
 ```
-*The backend will now be running at http://localhost:8000. It will automatically create the `./chroma_db` directory on first run.*
 
-### 2. Start the Next.js Frontend (Port 3000)
-
-The frontend provides a modern chat interface with role selection and document upload capabilities.
-
-Open a **new** terminal, navigate to the frontend directory, and start the development server:
-
+### 3. Frontend Initialization (Next.js)
 ```bash
-# Navigate to the frontend directory
-cd vaultrag-frontend
+# 1. Navigate to the frontend directory
+cd VaultRAG/vaultrag-frontend
 
-# Install Node dependencies
+# 2. Install dependencies
 npm install
 
-# Start the Next.js development server
+# 3. Ensure the backend URL is pointing to port 8000 inside an .env file
+# NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+
+# 4. Start the development server
 npm run dev
 ```
 
-### 3. Open the Application
-
-Open your browser and navigate to **[http://localhost:3000](http://localhost:3000)**. 
-
-- Use the **Header** to toggle between Employee and Executive roles.
-- Switch to the **Executive** role to drag-and-drop PDF or CSV files into the input bar for ingestion.
-- Start asking questions!
-
----
-
-## 📚 Architecture Deep Dive
-
-Curious about how the pieces fit together? Check out our comprehensive [PROJECT_ARCHITECTURE.md](./PROJECT_ARCHITECTURE.md) document at the root of the repository for an in-depth look at our data flows, RBAC implementations, and API schemas.
+### 4. Authenticate & Ask
+Open your browser to `http://localhost:3000`. Utilize the tokens you strictly defined in step 2 to perform authenticated, scoped queries. Let your private data talk without leaving the machine.

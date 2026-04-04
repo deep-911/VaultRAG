@@ -17,6 +17,25 @@ export type ChatHistoryItem = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Auth helpers                                                      */
+/* ------------------------------------------------------------------ */
+
+const EXECUTIVE_TOKEN = "eclipse-vault-2026";
+const EMPLOYEE_TOKEN = "vault-member-2026";
+
+/**
+ * Return the correct Bearer token for the role.
+ * Each role gets its own scoped token for RBAC enforcement.
+ */
+function getAuthHeaders(role: UserRole): Record<string, string> {
+  const token = role === "Executive" ? EXECUTIVE_TOKEN : EMPLOYEE_TOKEN;
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Streaming /ask consumer                                           */
 /* ------------------------------------------------------------------ */
 
@@ -46,7 +65,7 @@ export async function askVaultRagStream(
 ): Promise<void> {
   const res = await fetch(`${getApiBase()}/ask`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(user_role),
     body: JSON.stringify({ query, user_role, chat_history }),
   });
 
@@ -134,14 +153,19 @@ export async function askVaultRagStream(
 }
 
 /* ------------------------------------------------------------------ */
-/*  File upload                                                       */
+/*  File upload (auth-protected)                                      */
 /* ------------------------------------------------------------------ */
 
-export async function uploadExecutiveFile(file: File): Promise<void> {
+export async function uploadExecutiveFile(
+  file: File,
+  role: UserRole = "Executive",
+): Promise<void> {
+  const token = role === "Executive" ? EXECUTIVE_TOKEN : EMPLOYEE_TOKEN;
   const fd = new FormData();
   fd.append("file", file);
   const res = await fetch(`${getApiBase()}/upload-file`, {
     method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
     body: fd,
   });
 

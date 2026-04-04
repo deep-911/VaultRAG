@@ -25,3 +25,18 @@ node_modules/
 
 # Prototype / scratch HTML at repo root
 stitch_ui.html
+
+# Local Database
+chroma_db/
+
+# TestSprite & AI Artifacts
+.testsprite/
+code_summary.yaml
+TEST_SPEC_V2.md
+
+# Environment Variables (CRITICAL)
+.env
+
+# Python Caches
+__pycache__/
+*.pyc

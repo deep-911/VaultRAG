@@ -59,7 +59,7 @@ export default function InputBar({
   onToggleTts,
   variant = 'default',
   attachDisabled = false,
-  attachTitle = 'Attach PDF or CSV (Executive mode)',
+  attachTitle = 'Attach document (PDF, CSV, TXT)',
   userRole = 'Employee',
   onUserRoleChange,
 }: InputBarProps) {
@@ -275,7 +275,7 @@ export default function InputBar({
             type="button"
             className="input-bar__action-btn"
             title={attachTitle}
-            aria-label="Attach PDF or CSV"
+            aria-label="Attach document"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || attachDisabled}
           >
@@ -284,7 +284,7 @@ export default function InputBar({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.csv,application/pdf,text/csv"
+            accept=".pdf,.csv,.txt,application/pdf,text/csv,text/plain"
             multiple
             style={{ display: 'none' }}
             onChange={handleFileSelect}

@@ -5,26 +5,56 @@ import re
 import uuid
 import logging
 import asyncio
+import sys
 from io import BytesIO, StringIO
 
 import httpx
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 import chromadb
-from sentence_transformers import SentenceTransformer
+import torch
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+EXECUTIVE_SECRET_TOKEN = os.getenv("EXECUTIVE_SECRET_TOKEN")
+EMPLOYEE_SECRET_TOKEN = os.getenv("EMPLOYEE_SECRET_TOKEN")
+
+if not EXECUTIVE_SECRET_TOKEN or not EMPLOYEE_SECRET_TOKEN:
+    logger.error("CRITICAL: Missing required secret tokens in environment variables. Set EXECUTIVE_SECRET_TOKEN and EMPLOYEE_SECRET_TOKEN.")
+    sys.exit(1)
+
+_bearer_scheme = HTTPBearer()
+
+# Map tokens to scoped roles
+_TOKEN_ROLE_MAP = {
+    EXECUTIVE_SECRET_TOKEN: "Executive",
+    EMPLOYEE_SECRET_TOKEN: "Employee",
+}
+
+
+async def verify_token(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+) -> str:
+    """Scoped RBAC gate: return the role associated with the Bearer token."""
+    role = _TOKEN_ROLE_MAP.get(credentials.credentials)
+    if role is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized - Invalid Token",
+        )
+    return role
 
 app = FastAPI(title="VaultRAG Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,19 +64,17 @@ app.add_middleware(
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="vault_docs")
 
-# Embedding model — loaded once at startup
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+# Embedding models — loaded once at startup
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device="cuda" if torch.cuda.is_available() else "cpu")
+cross_encoder_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", device="cuda" if torch.cuda.is_available() else "cpu")
 
 # Upload limits (PDF/CSV ingestion)
 UPLOAD_MAX_BYTES = 25 * 1024 * 1024  # 25 MiB raw file
 UPLOAD_MAX_CHUNKS = 2000
 
-# Retrieval: fetch extra, then filter/rerank; final count 3–4 (default 4)
-RETRIEVAL_FETCH_K = 12
-RETRIEVAL_TOP_K = 4
-# Drop hits much worse than the best match (relative) and obvious low-similarity tails (absolute)
-RETRIEVAL_MAX_DISTANCE_DELTA = 0.40
-RETRIEVAL_MAX_DISTANCE_ABSOLUTE = 1.28
+# Retrieval: fetch extra, then filter/rerank via Cross-Encoder
+RETRIEVAL_FETCH_K = 15
+RETRIEVAL_TOP_K = 5
 
 _STOPWORDS = frozenset(
     """
@@ -214,13 +242,15 @@ def _sniff_pdf(data: bytes) -> bool:
 
 
 def _detect_file_kind(filename: str, content_type: str | None, data: bytes) -> str | None:
-    """Return 'pdf' or 'csv', or None if unsupported."""
+    """Return 'pdf', 'csv', 'txt', or None if unsupported."""
     name = (filename or "").lower()
     ct = (content_type or "").lower()
     if name.endswith(".pdf") or ct == "application/pdf":
         return "pdf"
     if name.endswith(".csv") or "csv" in ct or ct in ("text/csv", "application/csv"):
         return "csv"
+    if name.endswith(".txt") or ct == "text/plain":
+        return "txt"
     if _sniff_pdf(data):
         return "pdf"
     return None
@@ -287,103 +317,103 @@ async def upload_document(req: UploadRequest):
         raise HTTPException(status_code=500, detail="Internal server error during upload")
 
 
-@app.post("/upload-file")
-async def upload_file(file: UploadFile = File(...)):
-    """
-    Accept PDF or CSV in memory only (no disk persistence of the raw file).
-    Text is chunked, embedded, and stored in Chroma with role Executive.
-    """
+def _process_and_store_file(raw: bytes, filename: str, token_role: str, kind: str) -> None:
+    """Background task to extract, chunk, embed, and store document data."""
     try:
-        raw = await file.read()
+        try:
+            if kind == "pdf":
+                text = _extract_pdf_text(raw)
+            elif kind == "csv":
+                text = _extract_csv_text(raw)
+            else:
+                text = raw.decode("utf-8", errors="replace")
+        except Exception as exc:
+            logger.error(f"Could not parse {kind.upper()} file: {exc}")
+            return
+
+        chunks = _split_into_chunks(text)
+        if not chunks:
+            logger.warning(f"No text could be extracted from the file {filename}")
+            return
+
+        if len(chunks) > UPLOAD_MAX_CHUNKS:
+            logger.warning(f"Too many chunks after splitting ({len(chunks)}); max {UPLOAD_MAX_CHUNKS}")
+            return
+
+        embeddings = embedding_model.encode(chunks, show_progress_bar=False).tolist()
+        ids = [str(uuid.uuid4()) for _ in chunks]
+        metadatas = [{"role": token_role, "source_document": filename} for _ in chunks]
+
+        collection.add(
+            ids=ids,
+            documents=chunks,
+            embeddings=embeddings,
+            metadatas=metadatas,
+        )
+        logger.info(f"Successfully processed and stored {len(chunks)} chunks for {filename}")
+    except Exception as e:
+        logger.error(f"Background ingestion failed for {filename}: {e}")
+
+
+@app.post("/upload-file", status_code=status.HTTP_202_ACCEPTED)
+async def upload_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    token_role: str = Depends(verify_token),
+):
+    """
+    Accept PDF or CSV chunk by chunk up to the memory limit.
+    Offload embedding and storage to a background task so UI doesn't block.
+    """
+    raw_buffer = bytearray()
+    try:
+        while chunk := await file.read(1024 * 1024):  # 1MB chunks
+            raw_buffer.extend(chunk)
+            if len(raw_buffer) > UPLOAD_MAX_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File too large (max {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB)",
+                )
+        raw = bytes(raw_buffer)
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=400, detail="Could not read uploaded file")
 
     if not raw:
         raise HTTPException(status_code=422, detail="Empty file")
 
-    if len(raw) > UPLOAD_MAX_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large (max {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB)",
-        )
-
     kind = _detect_file_kind(file.filename or "", file.content_type, raw)
     if not kind:
         raise HTTPException(
             status_code=400,
-            detail="Only PDF or CSV files are supported",
+            detail="Only PDF, CSV, or TXT files are supported",
         )
 
-    try:
-        if kind == "pdf":
-            text = _extract_pdf_text(raw)
-        else:
-            text = _extract_csv_text(raw)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Could not parse {kind.upper()} file: {exc}",
-        ) from exc
+    # Hand off to background task
+    filename = file.filename or "unknown"
+    background_tasks.add_task(_process_and_store_file, raw, filename, token_role, kind)
 
-    chunks = _split_into_chunks(text)
-    if not chunks:
-        raise HTTPException(
-            status_code=422,
-            detail="No text could be extracted from the file",
-        )
-
-    if len(chunks) > UPLOAD_MAX_CHUNKS:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Too many chunks after splitting ({len(chunks)}); max {UPLOAD_MAX_CHUNKS}",
-        )
-
-    def _encode_file_chunks(parts: list[str]) -> list:
-        return embedding_model.encode(parts, show_progress_bar=False).tolist()
-
-    try:
-        embeddings = await asyncio.to_thread(_encode_file_chunks, chunks)
-        ids = [str(uuid.uuid4()) for _ in chunks]
-        filename = file.filename or "unknown"
-        metadatas = [{"role": UPLOAD_ROLE, "source_document": filename} for _ in chunks]
-
-        def _add_chunks() -> None:
-            collection.add(
-                ids=ids,
-                documents=chunks,
-                embeddings=embeddings,
-                metadatas=metadatas,
-            )
-
-        await asyncio.to_thread(_add_chunks)
-    except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to store document chunks",
-        )
-
-    return {"message": "Document successfully ingested"}
+    return {"message": "Ingestion started in the background."}
 
 
 def _rbac_search(query: str, user_role: str) -> list[dict]:
-    """RBAC-filtered vector search with distance + keyword-aware ranking."""
+    """RBAC-filtered vector search with Cross-Encoder semantic reranking."""
     if user_role == "Employee":
         where_filter = {"role": "Employee"}
     else:
         where_filter = {"role": {"$in": ["Employee", "Executive"]}}
 
     query_embedding = embedding_model.encode(query).tolist()
-    keywords = _extract_query_keywords(query)
 
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=min(RETRIEVAL_FETCH_K, max(collection.count(), 1)),
         where=where_filter,
-        include=["documents", "distances", "metadatas"],
+        include=["documents", "metadatas"],
     )
 
     raw_texts = results.get("documents", [[]])[0] or []
-    raw_dist = results.get("distances", [[]])[0] or []
     raw_meta = results.get("metadatas", [[]])[0] or []
 
     if not raw_texts:
@@ -391,16 +421,15 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
 
     raw_docs = [{"text": t, "source_document": m.get("source_document", "Unknown Source") if m else "Unknown Source"} for t, m in zip(raw_texts, raw_meta)]
 
-    if len(raw_dist) != len(raw_docs):
-        ranked = _rerank_by_keywords(raw_docs, [0.0] * len(raw_docs), keywords)
-        return ranked[:RETRIEVAL_TOP_K]
-
-    docs, dists = _filter_by_similarity(raw_docs, raw_dist)
-    if not docs:
-        docs, dists = raw_docs[:1], raw_dist[:1]
-
-    ranked = _rerank_by_keywords(docs, dists, keywords)
-    return ranked[:RETRIEVAL_TOP_K]
+    # Cross-Encoder Reranking
+    pairs = [[query, doc["text"]] for doc in raw_docs]
+    scores = cross_encoder_model.predict(pairs)
+    
+    # Sort docs by score descending
+    scored_docs = list(zip(raw_docs, scores))
+    scored_docs.sort(key=lambda x: x[1], reverse=True)
+    
+    return [doc for doc, score in scored_docs][:RETRIEVAL_TOP_K]
 
 
 @app.post("/search")
@@ -490,6 +519,7 @@ QUESTION:
 
 INSTRUCTIONS:
 
+You have been provided with the absolute most relevant data extracts. If multiple chunks provide different details on the same topic, synthesize them into a comprehensive answer.
 Answer the user's question using ONLY the provided CONTEXT. Never contradict the CONTEXT — pay close attention to negative statements like "no X" or "does not use Y". If the user asks for details, lists, or step-by-step explanations, provide a thorough, complete answer. Use the conversation history to understand follow-up questions. If the CONTEXT completely lacks the answer, state that the documents do not contain the information. DO NOT append any disclaimers, apologies, or missing-information warnings to the end of a valid answer. DO NOT cite sources, print filenames, or echo the raw context in your answer — the system UI handles citations automatically. Provide ONLY your answer. Give the answer and immediately stop generating.
 
 ---
@@ -502,9 +532,14 @@ _CONTEXT_STREAM_DELIMITER = "\n\n__VAULTRAG_CONTEXT__\n"
 
 
 @app.post("/ask")
-async def ask_question(req: SearchRequest):
+async def ask_question(
+    req: SearchRequest,
+    token_role: str = Depends(verify_token),
+):
     # --- Step 1 & 2 run before we return the StreamingResponse so
     #     validation / search errors become normal HTTP errors. ---
+    # Use the token-derived role for RBAC (not the request body) to
+    # prevent role spoofing.
     try:
         search_query = req.query
         if req.chat_history:
@@ -512,7 +547,7 @@ async def ask_question(req: SearchRequest):
                 req.query, req.chat_history
             )
 
-        documents = await asyncio.to_thread(_rbac_search, search_query, req.user_role)
+        documents = await asyncio.to_thread(_rbac_search, search_query, token_role)
         documents = [d for d in documents if d and d.get("text", "").strip()]
     except Exception as e:
         logger.error(f"Error in ask_question pre-processing: {e}")
