@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { MessageSquareText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import type { ChatMessage } from '../lib/chatTypes';
+import type { ChatMessage, ContextSnippet } from '../lib/chatTypes';
 import SourceSnippet from './SourceSnippet';
 
 function TypingIndicator() {
@@ -118,14 +118,18 @@ export default function ChatWindow({
                     <div className="chat-bubble__sources-label">
                       Sources Used
                     </div>
-                    {msg.sources.map((src: any, sidx: number) => (
-                      <SourceSnippet 
-                        key={sidx} 
-                        text={src?.text || (typeof src === 'string' ? src : '')} 
-                        sourceDoc={src?.source_document}
-                        index={sidx} 
-                      />
-                    ))}
+                    {msg.sources.map((src: ContextSnippet | string, sidx: number) => {
+                      const textVal = typeof src === 'string' ? src : (src as ContextSnippet).text;
+                      const sourceDoc = typeof src === 'object' && src !== null ? (src as ContextSnippet).source_document : undefined;
+                      return (
+                        <SourceSnippet 
+                          key={sidx} 
+                          text={textVal || ''} 
+                          sourceDoc={sourceDoc}
+                          index={sidx} 
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </div>
