@@ -75,9 +75,9 @@ def _keyword_overlap_count(text: str, keywords: list[str]) -> int:
 
 
 def _filter_by_similarity(
-    documents: list[str],
+    documents: list[dict],
     distances: list[float],
-) -> tuple[list[str], list[float]]:
+) -> tuple[list[dict], list[float]]:
     """Remove very weak matches vs. the best hit; requires distances from Chroma."""
     if not documents:
         return [], []
@@ -85,7 +85,7 @@ def _filter_by_similarity(
         return documents, distances or [0.0] * len(documents)
 
     d0 = distances[0]
-    kept_docs: list[str] = []
+    kept_docs: list[dict] = []
     kept_dist: list[float] = []
     for doc, d in zip(documents, distances):
         if d > RETRIEVAL_MAX_DISTANCE_ABSOLUTE:
@@ -98,16 +98,16 @@ def _filter_by_similarity(
 
 
 def _rerank_by_keywords(
-    documents: list[str],
+    documents: list[dict],
     distances: list[float],
     keywords: list[str],
-) -> list[str]:
+) -> list[dict]:
     """Prefer chunks that mention query terms (revenue, salary, …) when overlap exists."""
     if not documents:
         return []
-    pairs: list[tuple[str, float, int]] = []
+    pairs: list[tuple[dict, float, int]] = []
     for doc, dist in zip(documents, distances):
-        ov = _keyword_overlap_count(doc, keywords)
+        ov = _keyword_overlap_count(doc["text"], keywords)
         pairs.append((doc, dist, ov))
 
     if keywords:
@@ -116,22 +116,24 @@ def _rerank_by_keywords(
             pairs = with_kw
 
     pairs.sort(key=lambda x: (-x[2], x[1]))
-    out: list[str] = []
+    out: list[dict] = []
     seen: set[str] = set()
     for doc, _, _ in pairs:
-        if doc and doc.strip() and doc not in seen:
-            seen.add(doc)
+        text_val = doc.get("text", "")
+        if text_val and text_val.strip() and text_val not in seen:
+            seen.add(text_val)
             out.append(doc)
         if len(out) >= RETRIEVAL_TOP_K:
             break
     return out
 
 
-def _join_context_blocks(documents: list[str]) -> str:
+def _join_context_blocks(documents: list[dict]) -> str:
     """Join retrieved docs with explicit separators for the LLM."""
     parts: list[str] = []
     for i, doc in enumerate(documents, start=1):
-        parts.append(f"--- Source {i} ---\n{doc.strip()}")
+        filename = doc.get("source_document", f"Source {i}")
+        parts.append(f"--- {filename} ---\n{doc['text'].strip()}")
     return "\n\n".join(parts)
 
 
@@ -168,32 +170,40 @@ def _extract_csv_text(data: bytes) -> str:
 
 
 def _split_into_chunks(text: str) -> list[str]:
-    """Split long text into ~300–500 char chunks; prefer word boundaries."""
+    """Split long text into ~500 char chunks with a 100-character overlap sliding window."""
     text = re.sub(r"\s+", " ", text).strip()
     if not text:
         return []
-    n = len(text)
-    if n <= CHUNK_MAX:
-        return [text]
-
-    chunks: list[str] = []
+    
+    chunk_size = 500
+    overlap = 100
+    chunks = []
     start = 0
+    n = len(text)
+    
     while start < n:
-        if n - start <= CHUNK_MAX:
-            piece = text[start:n].strip()
+        end = min(start + chunk_size, n)
+        if end == n:
+            piece = text[start:end].strip()
             if piece:
                 chunks.append(piece)
             break
-        end = start + CHUNK_MAX
-        cut = text.rfind(" ", start + CHUNK_MIN, end + 1)
-        if cut == -1 or cut <= start:
+            
+        cut = text.rfind(" ", start, end)
+        if cut <= start:
             cut = end
+            
         piece = text[start:cut].strip()
         if piece:
             chunks.append(piece)
-        start = cut
-        while start < n and text[start] == " ":
-            start += 1
+            
+        next_start = max(start + 1, cut - overlap)
+        space_idx = text.find(" ", next_start, cut)
+        if space_idx != -1:
+            start = space_idx + 1
+        else:
+            start = next_start
+            
     return chunks
 
 
@@ -266,7 +276,7 @@ async def upload_document(req: UploadRequest):
             ids=[doc_id],
             documents=[req.content],
             embeddings=[embedding],
-            metadatas=[{"role": req.role}],
+            metadatas=[{"role": req.role, "source_document": "Direct Upload"}],
         )
 
         return {"message": f"Document stored with role '{req.role}'", "id": doc_id}
@@ -332,7 +342,8 @@ async def upload_file(file: UploadFile = File(...)):
     try:
         embeddings = await asyncio.to_thread(_encode_file_chunks, chunks)
         ids = [str(uuid.uuid4()) for _ in chunks]
-        metadatas = [{"role": UPLOAD_ROLE} for _ in chunks]
+        filename = file.filename or "unknown"
+        metadatas = [{"role": UPLOAD_ROLE, "source_document": filename} for _ in chunks]
 
         def _add_chunks() -> None:
             collection.add(
@@ -352,7 +363,7 @@ async def upload_file(file: UploadFile = File(...)):
     return {"message": "Document successfully ingested"}
 
 
-def _rbac_search(query: str, user_role: str) -> list[str]:
+def _rbac_search(query: str, user_role: str) -> list[dict]:
     """RBAC-filtered vector search with distance + keyword-aware ranking."""
     if user_role == "Employee":
         where_filter = {"role": "Employee"}
@@ -366,14 +377,17 @@ def _rbac_search(query: str, user_role: str) -> list[str]:
         query_embeddings=[query_embedding],
         n_results=min(RETRIEVAL_FETCH_K, max(collection.count(), 1)),
         where=where_filter,
-        include=["documents", "distances"],
+        include=["documents", "distances", "metadatas"],
     )
 
-    raw_docs = results.get("documents", [[]])[0] or []
+    raw_texts = results.get("documents", [[]])[0] or []
     raw_dist = results.get("distances", [[]])[0] or []
+    raw_meta = results.get("metadatas", [[]])[0] or []
 
-    if not raw_docs:
+    if not raw_texts:
         return []
+
+    raw_docs = [{"text": t, "source_document": m.get("source_document", "Unknown Source") if m else "Unknown Source"} for t, m in zip(raw_texts, raw_meta)]
 
     if len(raw_dist) != len(raw_docs):
         ranked = _rerank_by_keywords(raw_docs, [0.0] * len(raw_docs), keywords)
@@ -531,13 +545,12 @@ QUESTION:
 
 INSTRUCTIONS:
 
-* Answer using the provided context only.
-* If partial information is available, answer based on what is present.
-* If nothing relevant is found, respond with exactly this sentence and nothing else: No relevant information found.
+* You are an elite enterprise data extractor. Your ONLY knowledge comes from the CONTEXT below.
+* Do not attempt to infer, guess, or use outside knowledge.
+* If the answer is not explicitly stated in the CONTEXT, you must reply EXACTLY with: No relevant information found.
 * When you have an answer: start with the direct answer in one clear sentence. You may add at most one short second sentence that supports or sources it (optional). Do not add a third sentence.
 * Write in complete, professional sentences—no fragments, bullets, or broken phrasing.
 * Example of good formatting: "The company's revenue is 200 crore INR in Q4. This information is sourced from financial reports."
-* Do not hallucinate beyond context.
 * Use the conversation history above to understand context of follow-up questions.
 
 ---
@@ -559,7 +572,7 @@ async def ask_question(req: SearchRequest):
         # --- Step 2: RBAC-filtered vector search with the rewritten query ---
         documents = await asyncio.to_thread(_rbac_search, search_query, req.user_role)
         # Non-empty chunks only; never call the LLM with empty context
-        documents = [d for d in documents if d and str(d).strip()]
+        documents = [d for d in documents if d and d.get("text", "").strip()]
         if not documents:
             return {
                 "answer": "No relevant information found.",

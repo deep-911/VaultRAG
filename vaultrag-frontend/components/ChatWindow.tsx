@@ -112,8 +112,13 @@ export default function ChatWindow({
                     <div className="chat-bubble__sources-label">
                       Sources Used
                     </div>
-                    {msg.sources.map((chunk: string, sidx: number) => (
-                      <SourceSnippet key={sidx} text={chunk} index={sidx} />
+                    {msg.sources.map((src: any, sidx: number) => (
+                      <SourceSnippet 
+                        key={sidx} 
+                        text={src?.text || (typeof src === 'string' ? src : '')} 
+                        sourceDoc={src?.source_document}
+                        index={sidx} 
+                      />
                     ))}
                   </div>
                 )}

@@ -1,3 +1,5 @@
+import { ContextSnippet } from "./chatTypes";
+
 export type UserRole = "Employee" | "Executive";
 
 const API_BASE =
@@ -11,7 +13,7 @@ function getApiBase(): string {
 
 type AskResponse = {
   answer: string;
-  context_used: string[];
+  context_used: ContextSnippet[];
 };
 
 export type ChatHistoryItem = {
