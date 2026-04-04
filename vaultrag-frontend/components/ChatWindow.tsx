@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { MessageSquareText } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../lib/chatTypes';
 import SourceSnippet from './SourceSnippet';
 
@@ -103,10 +104,12 @@ export default function ChatWindow({
                     model returned no grounded answer.
                   </div>
                 )}
-                {msg.text}
+                <div className="chat-bubble__content">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
                 {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-5 pt-4 border-t border-white/10 flex flex-col gap-2.5">
-                    <div className="text-[11px] font-semibold text-indigo-400/80 uppercase tracking-widest mb-0.5">
+                  <div className="chat-bubble__sources">
+                    <div className="chat-bubble__sources-label">
                       Sources Used
                     </div>
                     {msg.sources.map((chunk: string, sidx: number) => (

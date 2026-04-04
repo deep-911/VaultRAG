@@ -7,6 +7,7 @@ import ChatWindow from '../components/ChatWindow';
 import InputBar from '../components/InputBar';
 import SearchingAnimation from '../components/SearchingAnimation';
 import HistoryPanel from '../components/HistoryPanel';
+import SystemStatus from '../components/SystemStatus';
 import type { UserRole, ChatHistoryItem } from '../lib/vaultragApi';
 import {
   askVaultRag,
@@ -312,6 +313,7 @@ export default function App() {
             />
           </div>
         </main>
+        <SystemStatus />
       </div>
     </>
   );
