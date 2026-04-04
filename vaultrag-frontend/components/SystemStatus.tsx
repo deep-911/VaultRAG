@@ -66,57 +66,57 @@ export default function SystemStatus() {
       <div 
         className={`transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] transform ${
           showExpanded 
-            ? 'opacity-100 translate-y-0 scale-100' 
+            ? 'opacity-100 translate-y-0 scale-100 relative' 
             : 'opacity-0 translate-y-12 scale-95 pointer-events-none absolute bottom-0 right-0'
         }`}
       >
-        <div className="bg-[#0f0f14]/90 backdrop-blur-2xl border border-gray-800 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] w-[320px] flex flex-col p-5">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-800/50 mb-4">
-            <span className="text-[10px] font-bold tracking-[0.2em] text-gray-500">SYSTEM STATUS</span>
+        <div className="glass rounded-2xl w-max min-w-[360px] flex flex-col p-6 shadow-[var(--shadow-float)]">
+          <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)] mb-5">
+            <span className="text-[11px] font-bold tracking-[0.2em] text-[var(--text-secondary)]">SYSTEM STATUS</span>
             <button 
-              className="text-gray-500 hover:text-white hover:bg-gray-800 p-1.5 rounded-lg transition-colors cursor-pointer" 
+              className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] p-1.5 rounded-lg transition-colors cursor-pointer" 
               onClick={() => { setIsCollapsed(true); setIsHovered(false); }} 
               aria-label="Collapse panel"
             >
               <ChevronUp size={16} />
             </button>
           </div>
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
             {statusState.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.id} className="flex items-center justify-between text-sm">
+                <div key={item.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-xl flex items-center justify-center transition-colors duration-500 ${
-                      item.state === 'ready' ? 'bg-emerald-500/10 text-emerald-400' :
-                      item.state === 'loading' ? 'bg-indigo-500/10 text-indigo-400' :
-                      'bg-gray-800/30 text-gray-600'
+                      item.state === 'ready' ? 'bg-emerald-500/10 text-emerald-500' :
+                      item.state === 'loading' ? 'bg-indigo-500/10 text-indigo-500' :
+                      'bg-[var(--bg-surface)] text-[var(--text-tertiary)]'
                     }`}>
                       <Icon size={16} />
                     </div>
-                    <span className={`font-medium text-sm transition-colors duration-500 ${
-                      item.state === 'ready' ? 'text-gray-200' :
-                      item.state === 'loading' ? 'text-gray-300' :
-                      'text-gray-500'
+                    <span className={`font-semibold text-[13px] transition-colors duration-500 ${
+                      item.state === 'ready' ? 'text-[var(--text-primary)]' :
+                      item.state === 'loading' ? 'text-[var(--text-secondary)]' :
+                      'text-[var(--text-tertiary)]'
                     }`}>
                       {item.label}
                     </span>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center w-4 h-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center w-4 h-4 shrink-0">
                       {item.state === 'loading' ? (
-                        <Loader2 size={14} className="text-indigo-400 animate-spin" />
+                        <Loader2 size={14} className="text-indigo-500 animate-spin" />
                       ) : item.state === 'ready' ? (
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] border border-emerald-300/20"></div>
                       ) : (
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-700"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-tertiary)] opacity-50"></div>
                       )}
                     </div>
-                    <span className={`text-xs font-mono min-w-[90px] text-right transition-colors duration-500 ${
-                      item.state === 'ready' ? 'text-emerald-400' :
-                      item.state === 'loading' ? 'text-indigo-400' :
-                      'text-gray-600'
+                    <span className={`text-[12px] font-mono min-w-[130px] w-max text-right whitespace-nowrap shrink-0 transition-colors duration-500 ${
+                      item.state === 'ready' ? 'text-emerald-500 font-medium' :
+                      item.state === 'loading' ? 'text-indigo-500 font-medium' :
+                      'text-[var(--text-tertiary)]'
                     }`}>
                       {item.text}
                     </span>
@@ -136,24 +136,24 @@ export default function SystemStatus() {
         }`}
       >
         <button 
-          className="flex items-center gap-3 bg-[#0f0f14]/90 backdrop-blur-2xl border border-gray-800 px-4 py-2.5 rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.4)] hover:bg-gray-800 transition-all hover:scale-[1.02] active:scale-[0.98] group" 
+          className="flex items-center gap-3 glass px-5 py-3 rounded-full hover:bg-[var(--bg-surface-hover)] transition-all hover:scale-[1.02] active:scale-[0.98] group shadow-[var(--shadow-float)]" 
           onClick={() => setIsCollapsed(false)}
         >
-          <span className="text-[11px] font-bold tracking-wider text-gray-400 group-hover:text-gray-200 transition-colors uppercase">
+          <span className="text-[11px] font-bold tracking-wider text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors uppercase">
             System 
           </span>
-          <div className="flex items-center gap-1.5 border-l border-gray-800 pl-3">
+          <div className="flex items-center gap-2 border-l border-[var(--border-subtle)] pl-3.5">
             {statusState.map(item => {
               const Icon = item.icon;
               return (
                 <div key={item.id} className="relative">
                   <Icon size={14} className={`transition-colors duration-500 ${
-                    item.state === 'ready' ? 'text-emerald-400' :
-                    item.state === 'loading' ? 'text-indigo-400 animate-pulse' :
-                    'text-gray-600'
+                    item.state === 'ready' ? 'text-emerald-500' :
+                    item.state === 'loading' ? 'text-indigo-500 animate-pulse' :
+                    'text-[var(--text-tertiary)]'
                   }`} />
                   {item.state === 'ready' && (
-                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)]"></div>
+                    <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)] border border-[var(--bg-glass)]"></div>
                   )}
                 </div>
               );
