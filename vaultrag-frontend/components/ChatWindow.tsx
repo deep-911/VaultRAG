@@ -6,11 +6,13 @@ import SourceSnippet from './SourceSnippet';
 function TypingIndicator() {
   return (
     <div className="chat-message chat-message--system">
-      <div className="chat-bubble chat-bubble--system">
-        <div className="typing-indicator">
-          <div className="typing-indicator__dot" />
-          <div className="typing-indicator__dot" />
-          <div className="typing-indicator__dot" />
+      <div className="chat-bubble chat-bubble--system flex items-center gap-3">
+        <div className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+        </div>
+        <div className="text-sm font-medium text-indigo-300/80 animate-pulse tracking-wide">
+          VaultRAG is analyzing corporate archives...
         </div>
       </div>
     </div>
@@ -103,8 +105,10 @@ export default function ChatWindow({
                 )}
                 {msg.text}
                 {msg.sources && msg.sources.length > 0 && (
-                  <div className="source-snippet-list">
-                    <div className="source-snippet-list__title">Context used (retrieved chunks)</div>
+                  <div className="mt-5 pt-4 border-t border-white/10 flex flex-col gap-2.5">
+                    <div className="text-[11px] font-semibold text-indigo-400/80 uppercase tracking-widest mb-0.5">
+                      Sources Used
+                    </div>
                     {msg.sources.map((chunk: string, sidx: number) => (
                       <SourceSnippet key={sidx} text={chunk} index={sidx} />
                     ))}
