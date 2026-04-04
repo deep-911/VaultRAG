@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Sparkles, Sun, Moon, Shield } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import type { UserRole } from '../lib/vaultragApi';
 import ExecutiveUnlockModal from './ExecutiveUnlockModal';
 
 interface HeaderProps {
-  userRole: string;
-  onUserRoleChange: (role: string) => void;
+  userRole: UserRole;
+  onUserRoleChange: (role: UserRole) => void;
 }
 
 export default function Header({ userRole, onUserRoleChange }: HeaderProps) {

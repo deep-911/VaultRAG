@@ -1,5 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { FileText, File, FolderOpen, Image, Code, Table } from 'lucide-react';
+
+type WaveParticle = {
+  id: string;
+  Icon: LucideIcon;
+  color: string;
+  label: string;
+  originX: number;
+  originY: number;
+  endX: number;
+  endY: number;
+  size: number;
+  duration: number;
+  stagger: number;
+  rotation: number;
+};
 
 const FILE_TYPES = [
   { Icon: FileText, color: '#ef4444', label: 'PDF' },      // Red
@@ -16,7 +32,7 @@ const WAVE_SIZE = 6;         // particles per wave
 const WAVE_INTERVAL = 2200;  // ms between waves
 
 export default function SearchingAnimation() {
-  const [waves, setWaves] = useState([]);
+  const [waves, setWaves] = useState<WaveParticle[]>([]);
   const waveCounter = useRef(0);
 
   // Get the input bar position so particles originate from it
@@ -95,17 +111,19 @@ export default function SearchingAnimation() {
         <span
           key={p.id}
           className="searching-animation__particle"
-          style={{
-            left: `${p.originX}px`,
-            top: `${p.originY}px`,
-            color: p.color,
-            '--end-x': `${p.endX - p.originX}px`,
-            '--end-y': `${p.endY - p.originY}px`,
-            '--rotation': `${p.rotation}deg`,
-            animationDelay: `${p.stagger}s`,
-            animationDuration: `${p.duration}s`,
-            filter: `drop-shadow(0 0 8px ${p.color}66)`,
-          }}
+          style={
+            {
+              left: `${p.originX}px`,
+              top: `${p.originY}px`,
+              color: p.color,
+              ['--end-x' as string]: `${p.endX - p.originX}px`,
+              ['--end-y' as string]: `${p.endY - p.originY}px`,
+              ['--rotation' as string]: `${p.rotation}deg`,
+              animationDelay: `${p.stagger}s`,
+              animationDuration: `${p.duration}s`,
+              filter: `drop-shadow(0 0 8px ${p.color}66)`,
+            } as React.CSSProperties
+          }
         >
           <p.Icon style={{ width: p.size, height: p.size }} />
         </span>

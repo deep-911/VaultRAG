@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import AmbientBackground from '../components/AmbientBackground';
 import CursorOrbs from '../components/CursorOrbs';
 import Header from '../components/Header';
@@ -13,21 +13,12 @@ import {
   uploadExecutiveFile,
   isNoRelevantAnswer,
 } from '../lib/vaultragApi';
-
-
+import type { ChatMessage } from '../lib/chatTypes';
 
 function generateTitle(text: string) {
   const clean = text.trim();
   return clean.length > 40 ? clean.slice(0, 40) + '…' : clean;
 }
-
-type ChatMessage = {
-  role: 'user' | 'system';
-  text: string;
-  attachments?: File[];
-  sources?: string[];
-  noRelevantInfo?: boolean;
-};
 
 export default function App() {
   const [conversations, setConversations] = useState<
@@ -63,7 +54,10 @@ export default function App() {
   }, [conversations]);
 
   const activeConv = conversations.find((c) => c.id === activeConvId);
-  const messages = activeConv ? activeConv.messages : [];
+  const messages = useMemo(
+    () => (activeConv ? activeConv.messages : []),
+    [activeConv]
+  );
 
   useEffect(() => {
     if (!ttsEnabled) {

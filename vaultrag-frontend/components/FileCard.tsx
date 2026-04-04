@@ -2,6 +2,8 @@ import React from 'react';
 import { FileText, FileCode, FileSpreadsheet, Image, File } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+type FileTypeKey = keyof typeof FILE_TYPE_CONFIG;
+
 const FILE_TYPE_CONFIG = {
   pdf: { icon: FileText, className: 'file-card__icon--pdf' },
   doc: { icon: FileText, className: 'file-card__icon--doc' },
@@ -11,14 +13,29 @@ const FILE_TYPE_CONFIG = {
   default: { icon: File, className: 'file-card__icon--default' },
 };
 
-function getScoreClass(score) {
+function getScoreClass(score: number): string {
   if (score >= 75) return 'file-card__score--high';
   if (score >= 45) return 'file-card__score--medium';
   return 'file-card__score--low';
 }
 
-export default function FileCard({ file, index = 0 }) {
-  const typeConfig = FILE_TYPE_CONFIG[file.type] || FILE_TYPE_CONFIG.default;
+export type FileCardItem = {
+  filename: string;
+  size: string;
+  lastModified: string;
+  relevanceScore: number;
+  snippet: string;
+  type: FileTypeKey;
+};
+
+export default function FileCard({
+  file,
+  index = 0,
+}: {
+  file: FileCardItem;
+  index?: number;
+}) {
+  const typeConfig = FILE_TYPE_CONFIG[file.type] ?? FILE_TYPE_CONFIG.default;
   const IconComponent = typeConfig.icon;
 
   return (

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { MessageSquareText } from 'lucide-react';
+import type { ChatMessage } from '../lib/chatTypes';
 import SourceSnippet from './SourceSnippet';
 
 function TypingIndicator() {
@@ -51,7 +52,15 @@ export function WelcomeState({ onSuggestionClick }: { onSuggestionClick: (s: str
   );
 }
 
-export default function ChatWindow({ messages, isTyping, onSuggestionClick }: { messages: any[], isTyping: boolean, onSuggestionClick: (s: string) => void }) {
+export default function ChatWindow({
+  messages,
+  isTyping,
+  onSuggestionClick,
+}: {
+  messages: ChatMessage[];
+  isTyping: boolean;
+  onSuggestionClick: (s: string) => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,7 +85,7 @@ export default function ChatWindow({ messages, isTyping, onSuggestionClick }: { 
               {msg.text}
               {msg.attachments && msg.attachments.length > 0 && (
                 <div className="chat-bubble__attachments">
-                  {msg.attachments.map((f: any, fidx: number) => (
+                  {msg.attachments.map((f: File, fidx: number) => (
                     <span key={fidx} className="chat-bubble__file-tag">📎 {f.name}</span>
                   ))}
                 </div>
@@ -96,7 +105,7 @@ export default function ChatWindow({ messages, isTyping, onSuggestionClick }: { 
                 {msg.sources && msg.sources.length > 0 && (
                   <div className="source-snippet-list">
                     <div className="source-snippet-list__title">Context used (retrieved chunks)</div>
-                    {msg.sources.map((chunk: any, sidx: number) => (
+                    {msg.sources.map((chunk: string, sidx: number) => (
                       <SourceSnippet key={sidx} text={chunk} index={sidx} />
                     ))}
                   </div>

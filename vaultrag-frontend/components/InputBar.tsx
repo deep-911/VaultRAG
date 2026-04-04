@@ -1,9 +1,32 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, startTransition } from 'react';
 import { Paperclip, ArrowUp, X, FileText, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 
-function getSpeechRecognition() {
+/** Minimal Web Speech API surface (Chromium `SpeechRecognition` / `webkitSpeechRecognition`). */
+type SpeechRecognitionResultRow = { isFinal: boolean; 0: { transcript: string } };
+type SpeechRecognitionResultsList = { length: number; [i: number]: SpeechRecognitionResultRow };
+
+type SpeechRecognitionInstance = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((ev: { resultIndex: number; results: SpeechRecognitionResultsList }) => void) | null;
+  onerror: ((ev: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+function getSpeechRecognition(): SpeechRecognitionConstructor | null {
   if (typeof window === 'undefined') return null;
-  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+  const w = window as Window &
+    typeof globalThis & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
 interface InputBarProps {
@@ -36,12 +59,12 @@ export default function InputBar({
   /** Only true after mount so SSR + first client paint match (avoids mic button hydration mismatch). */
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
     const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) return;
-    setSpeechAvailable(true);
+    startTransition(() => setSpeechAvailable(true));
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -50,7 +73,7 @@ export default function InputBar({
 
     let finalTranscript = '';
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: { resultIndex: number; results: SpeechRecognitionResultsList }) => {
       let interimTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
@@ -66,7 +89,7 @@ export default function InputBar({
       });
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: { error: string }) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
     };
@@ -101,7 +124,9 @@ export default function InputBar({
       }
       setTimeout(() => {
         try {
-          recognitionRef.current.start();
+          const rec = recognitionRef.current;
+          if (!rec) return;
+          rec.start();
           setIsListening(true);
         } catch (e) {
           console.error('Failed to start recognition:', e);
@@ -165,7 +190,7 @@ export default function InputBar({
                 <button
                   type="button"
                   className="input-bar__attachment-remove"
-                  onClick={() => onRemoveFile(idx)}
+                  onClick={() => onRemoveFile?.(idx)}
                   aria-label={`Remove ${file.name}`}
                 >
                   <X />

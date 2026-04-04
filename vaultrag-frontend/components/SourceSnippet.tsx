@@ -1,13 +1,18 @@
 import React from 'react';
 import { FileSearch } from 'lucide-react';
 
-function truncate(text, maxLen = 320) {
+function truncate(text: string, maxLen = 320): string {
   const s = (text || '').replace(/\s+/g, ' ').trim();
   if (s.length <= maxLen) return s;
   return s.slice(0, maxLen).trim() + '…';
 }
 
-export default function SourceSnippet({ text, index = 0 }) {
+type SourceSnippetProps = {
+  text: string;
+  index?: number;
+};
+
+export default function SourceSnippet({ text, index = 0 }: SourceSnippetProps) {
   return (
     <div className="source-snippet">
       <div className="source-snippet__header">

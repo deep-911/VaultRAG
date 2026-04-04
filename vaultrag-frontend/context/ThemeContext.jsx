@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, startTransition } from 'react';
 
 const ThemeContext = createContext();
 
@@ -14,8 +14,10 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     const saved =
       localStorage.getItem('vaultrag-theme') || localStorage.getItem('oracle-theme');
-    if (saved) setTheme(saved);
-    setMounted(true);
+    startTransition(() => {
+      if (saved) setTheme(saved);
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {

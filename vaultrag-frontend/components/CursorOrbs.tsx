@@ -11,11 +11,10 @@ export default function CursorOrbs() {
 
   // Secondary orb: softer spring, lags behind more
   const secondaryX = useSpring(mouseX, { stiffness: 40, damping: 20, mass: 1 });
-  const secondaryY = useSpring(mouseX, { stiffness: 40, damping: 20, mass: 1 });
   const secondaryYActual = useSpring(mouseY, { stiffness: 40, damping: 20, mass: 1 });
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       mouseX.set(e.clientX);
       mouseY.set(e.clientY);
     };

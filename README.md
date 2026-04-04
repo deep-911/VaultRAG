@@ -1,45 +1,83 @@
-# 🔒 VaultRAG: Secure Role-Based Knowledge Base
+# VaultRAG: Role-aware local RAG
 
-VaultRAG is an advanced Retrieval-Augmented Generation (RAG) system built to securely index and answer queries across your private documents. It enforces strict Role-Based Access Control (RBAC), ensuring that users only receive answers generated from documents they are authorized to see.
+[![CI](https://github.com/deep-911/VaultRAG/actions/workflows/ci.yml/badge.svg)](https://github.com/deep-911/VaultRAG/actions/workflows/ci.yml)
 
-## 🌟 Key Features
+VaultRAG is a retrieval-augmented generation (RAG) stack for **private documents**: **FastAPI** + **ChromaDB** + **sentence-transformers** for retrieval, **Ollama** (e.g. **Phi-3**) for answers, and a **Next.js** chat UI. Metadata-based **Employee / Executive** scopes filter which chunks are retrieved.
 
-*   **Role-Based Access Control (RBAC):** Native support for `Employee` and `Executive` roles. Documents uploaded via "Executive mode" are invisible to standard employee queries.
-*   **Fully Private LLM Backend:** Utilizes a local instance of the **Phi-3** model via Ollama. No data is sent to external API providers.
-*   **Async High-Performance Pipeline:** Embedding creation (`all-MiniLM-L6-v2`) and ChromaDB vector queries are handled asynchronously utilizing `httpx` and `asyncio` to ensure the FastAPI server never blocks.
-*   **Intelligent Refuse-to-Answer:** The system intelligently declines to respond when no matching vector chunks meet similarity thresholds or bypass RBAC filters. 
-*   **Persistent & Type-Safe UI:** A sleek, glassmorphic Next.js UI using local browser storage for persistent chat history and secure Typescript mappings.
+**Important:** the demo UI toggles role on the client only. Treat the API as **unauthenticated** unless you add real auth for production.
 
-## 🚀 Quickstart
+## Features
 
-### 1. Prerequisites 
+- **Scoped retrieval:** Chroma metadata `role` + query filters (`Employee` vs `Employee` + `Executive`).
+- **Local LLM:** configurable Ollama HTTP endpoint (default `phi3`).
+- **Ingestion:** text upload, or PDF/CSV file upload (chunked, in-memory parse).
+- **Refuse-to-answer:** skips the LLM when no chunks pass filters; output cleaning reduces prompt echo.
+- **Frontend:** chat history (browser `localStorage`), optional TTS, PDF/CSV attach in Executive mode.
+
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `main.py` | FastAPI app, Chroma, embeddings, `/ask`, `/upload`, `/upload-file` |
+| `requirements.txt` | Pinned Python dependencies |
+| `vaultrag-frontend/` | Next.js 16 UI |
+| `.github/workflows/ci.yml` | CI: Python syntax check + frontend lint/build |
+
+Local data (not committed): `chroma_db/`, Hugging Face / torch caches as usual.
+
+## Prerequisites
+
 - **Python 3.10+**
-- **Node.js 18+**
-- **Ollama** installed locally (running with `phi3`).
+- **Node.js 20+** (CI uses 20; 18+ may work)
+- **Ollama** with a pulled model, e.g. `ollama pull phi3`
 
-### 2. Backend Setup
+## Quickstart
+
+### Backend
+
 ```bash
 cd VaultRAG
-# Install dependencies
 pip install -r requirements.txt
-
-# Start Ollama service (in a separate terminal)
-ollama run phi3
-
-# Start FastAPI backend
 uvicorn main:app --reload --port 8000
 ```
 
-### 3. Frontend Setup
+Optional: copy `.env.example` to `.env` and load it with your tooling, or export:
+
+- `OLLAMA_URL` — default `http://localhost:11434/api/generate`
+
+In another terminal:
+
+```bash
+ollama run phi3
+```
+
+### Frontend
+
 ```bash
 cd vaultrag-frontend
-# Install Node dependencies
-npm install
-
-# Start Next.js Development Server
+npm ci
 npm run dev
 ```
-Navigate to `http://localhost:3000` to start querying your secure local knowledge base!
 
-## 📄 License & Attribution
-Designed for performance, privacy, and team collaboration.
+Open [http://localhost:3000](http://localhost:3000). Point the UI at your API (default `http://127.0.0.1:8000`) or set `NEXT_PUBLIC_VAULTRAG_API_URL` (see `vaultrag-frontend/.env.example`).
+
+## Configuration
+
+| Variable | Where | Description |
+|----------|--------|-------------|
+| `OLLAMA_URL` | Backend | Ollama generate endpoint |
+| `NEXT_PUBLIC_VAULTRAG_API_URL` | Frontend | Base URL for API (no trailing slash required) |
+
+Upload limits are defined in `main.py` (`UPLOAD_MAX_BYTES`, `UPLOAD_MAX_CHUNKS`).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+See [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE)
