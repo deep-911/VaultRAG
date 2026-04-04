@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, startTransition } from 'react';
-import { Paperclip, ArrowUp, X, FileText, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Paperclip, ArrowUp, X, FileText, Mic, MicOff, Volume2, VolumeX, Shield, Users, ChevronUp, Check } from 'lucide-react';
 
 /** Minimal Web Speech API surface (Chromium `SpeechRecognition` / `webkitSpeechRecognition`). */
 type SpeechRecognitionResultRow = { isFinal: boolean; 0: { transcript: string } };
@@ -40,7 +40,14 @@ interface InputBarProps {
   variant?: string;
   attachDisabled?: boolean;
   attachTitle?: string;
+  userRole?: string;
+  onUserRoleChange?: (role: string) => void;
 }
+
+const ROLES = [
+  { id: 'Employee', label: 'Employee', description: 'Standard access', icon: Users },
+  { id: 'Executive', label: 'Executive', description: 'Full access', icon: Shield },
+];
 
 export default function InputBar({
   onSubmit,
@@ -53,8 +60,28 @@ export default function InputBar({
   variant = 'default',
   attachDisabled = false,
   attachTitle = 'Attach PDF or CSV (Executive mode)',
+  userRole = 'Employee',
+  onUserRoleChange,
 }: InputBarProps) {
   const [value, setValue] = useState('');
+  const [roleDropOpen, setRoleDropOpen] = useState(false);
+  const roleDropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!roleDropOpen) return;
+    const h = (e: MouseEvent) => {
+      if (roleDropRef.current && !roleDropRef.current.contains(e.target as Node))
+        setRoleDropOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [roleDropOpen]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setRoleDropOpen(false); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
   const [isListening, setIsListening] = useState(false);
   /** Only true after mount so SSR + first client paint match (avoids mic button hydration mismatch). */
   const [speechAvailable, setSpeechAvailable] = useState(false);
@@ -162,6 +189,8 @@ export default function InputBar({
     e.target.value = '';
   };
 
+  const isExec = userRole === 'Executive';
+
   return (
     <div className={`input-bar ${variant === 'welcome' ? 'input-bar--welcome' : ''}`}>
       <div className="input-bar__controls-row input-bar__controls-row--simple">
@@ -178,6 +207,47 @@ export default function InputBar({
           {ttsEnabled ? <Volume2 className="tts-toggle__icon" /> : <VolumeX className="tts-toggle__icon" />}
           {ttsEnabled && <span className="tts-toggle__badge" />}
         </button>
+
+        {/* Role switcher — opens upward */}
+        {onUserRoleChange && (
+          <div className="ibar-role" ref={roleDropRef}>
+            {roleDropOpen && (
+              <div className="ibar-role__dropdown" role="listbox">
+                {ROLES.map((r) => {
+                  const active = userRole === r.id;
+                  const Icon = r.icon;
+                  return (
+                    <button
+                      key={r.id}
+                      role="option"
+                      aria-selected={active}
+                      className={`ibar-role__option ${active ? 'ibar-role__option--active' : ''}`}
+                      onClick={() => { onUserRoleChange(r.id); setRoleDropOpen(false); }}
+                    >
+                      <span className="ibar-role__option-name">{r.label}</span>
+                      <span className="ibar-role__option-desc">{r.description}</span>
+                      {active && <Check size={13} className="ibar-role__option-check" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <button
+              id="role-switcher-bottom"
+              className={`ibar-role__trigger ${isExec ? 'ibar-role__trigger--exec' : 'ibar-role__trigger--emp'}`}
+              onClick={() => setRoleDropOpen(v => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={roleDropOpen}
+            >
+              {isExec ? <Shield size={13} /> : <Users size={13} />}
+              <span>{userRole}</span>
+              <ChevronUp
+                size={13}
+                style={{ transform: roleDropOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+              />
+            </button>
+          </div>
+        )}
       </div>
 
       <form className="input-bar__container" onSubmit={handleSubmit}>
