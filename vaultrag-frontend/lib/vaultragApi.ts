@@ -33,6 +33,10 @@ export type StreamCallbacks = {
  * Consume the streaming /ask endpoint.
  * Text tokens are forwarded via `onToken`, and the final
  * JSON context array is forwarded via `onContext`.
+ *
+ * The backend yields the delimiter and the JSON in separate chunks,
+ * so after detecting the delimiter we must keep reading until the
+ * stream ends to collect the complete JSON payload.
  */
 export async function askVaultRagStream(
   query: string,
@@ -70,6 +74,7 @@ export async function askVaultRagStream(
   const decoder = new TextDecoder();
   let fullText = "";
   let emittedLength = 0;
+  let delimiterFound = false;
 
   try {
     while (true) {
@@ -78,23 +83,21 @@ export async function askVaultRagStream(
 
       fullText += decoder.decode(value, { stream: true });
 
+      // Once we've found the delimiter, just keep accumulating the
+      // JSON payload — don't emit anything else as visible text.
+      if (delimiterFound) continue;
+
       // Check whether the delimiter has arrived in the buffer
       const delimIdx = fullText.indexOf(CONTEXT_DELIMITER);
       if (delimIdx !== -1) {
-        // Emit any remaining text before the delimiter
+        delimiterFound = true;
+        // Emit any remaining answer text before the delimiter
         if (delimIdx > emittedLength) {
           callbacks.onToken(fullText.slice(emittedLength, delimIdx));
         }
-        // Parse the context JSON that follows the delimiter
-        const jsonStr = fullText.slice(delimIdx + CONTEXT_DELIMITER.length);
-        try {
-          const context = JSON.parse(jsonStr) as ContextSnippet[];
-          callbacks.onContext(context);
-        } catch {
-          /* context JSON may be incomplete — ignore */
-        }
         emittedLength = fullText.length;
-        break;
+        // Don't break — keep reading so the JSON payload is complete
+        continue;
       }
 
       // Emit text safely — hold back delimiter-length chars to avoid
@@ -106,8 +109,21 @@ export async function askVaultRagStream(
       }
     }
 
-    // Stream ended — handle any remaining buffer
-    if (fullText.indexOf(CONTEXT_DELIMITER) === -1 && fullText.length > emittedLength) {
+    // --- Post-stream processing ---
+    if (delimiterFound) {
+      // Extract everything after the delimiter as the JSON payload
+      const delimIdx = fullText.indexOf(CONTEXT_DELIMITER);
+      const jsonStr = fullText.slice(delimIdx + CONTEXT_DELIMITER.length);
+      if (jsonStr.trim()) {
+        try {
+          const context = JSON.parse(jsonStr) as ContextSnippet[];
+          callbacks.onContext(context);
+        } catch {
+          console.warn("Failed to parse context JSON from stream:", jsonStr.slice(0, 200));
+        }
+      }
+    } else if (fullText.length > emittedLength) {
+      // No delimiter found at all — emit everything remaining
       callbacks.onToken(fullText.slice(emittedLength));
     }
 

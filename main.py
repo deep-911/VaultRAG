@@ -413,63 +413,6 @@ async def search_documents(req: SearchRequest):
         raise HTTPException(status_code=500, detail="Internal server error during search")
 
 
-_CLEAN_OUTPUT_MAX_LEN = 600
-
-
-def clean_llm_output(text: str) -> str:
-    """
-    Normalize LLM text for /ask: take content after Answer:, drop prompt lines,
-    keep first 1–2 sentences, and fall back if empty or messy.
-    """
-    fallback = "No relevant information found."
-    if text is None:
-        return fallback
-    t = str(text).strip()
-    if not t:
-        return fallback
-
-    # 1. Prefer everything after the last "Answer:" (case-insensitive, handles echoed prompt)
-    if "Answer:" in t:
-        t = t.split("Answer:")[-1].strip()
-    elif re.search(r"(?i)answer\s*:", t):
-        t = re.split(r"(?i)answer\s*:\s*", t)[-1].strip()
-
-    # 2. Drop lines that are clearly prompt scaffolding
-    line_markers = ("CONTEXT:", "QUESTION:", "INSTRUCTION:", "INSTRUCTIONS:", "---")
-    kept: list[str] = []
-    for line in t.splitlines():
-        if any(m in line for m in line_markers):
-            continue
-        kept.append(line)
-    t = " ".join(s.strip() for s in kept if s.strip())
-
-    # 3. Keep only first 1–2 sentences
-    t = t.strip()
-    if not t:
-        return fallback
-    parts = re.split(r"(?<=[.!?])\s+", t)
-    parts = [p.strip() for p in parts if p.strip()]
-    if not parts:
-        return fallback
-    t = " ".join(parts[:2]).strip()
-
-    # 4. Collapse whitespace
-    t = re.sub(r"\s+", " ", t).strip()
-
-    # 5. Reject if still too long or still looks like leaked prompt
-    if len(t) > _CLEAN_OUTPUT_MAX_LEN:
-        return fallback
-    low = t.lower()
-    if "context:" in low or "question:" in low:
-        return fallback
-    if "instruction:" in low or "instructions:" in low:
-        return fallback
-    if "---" in t:
-        return fallback
-    if not t:
-        return fallback
-
-    return t
 
 
 # --------------- Query Rewriter (conversational memory) ---------------
@@ -547,13 +490,7 @@ QUESTION:
 
 INSTRUCTIONS:
 
-* You are an elite enterprise data extractor. Your ONLY knowledge comes from the CONTEXT below.
-* Do not attempt to infer, guess, or use outside knowledge.
-* If the answer is not explicitly stated in the CONTEXT, you must reply EXACTLY with: No relevant information found.
-* When you have an answer: start with the direct answer in one clear sentence. You may add at most one short second sentence that supports or sources it (optional). Do not add a third sentence.
-* Write in complete, professional sentences—no fragments, bullets, or broken phrasing.
-* Example of good formatting: "The company's revenue is 200 crore INR in Q4. This information is sourced from financial reports."
-* Use the conversation history above to understand context of follow-up questions.
+Answer the user's question using ONLY the provided CONTEXT. Never contradict the CONTEXT — pay close attention to negative statements like "no X" or "does not use Y". If the user asks for details, lists, or step-by-step explanations, provide a thorough, complete answer. Use the conversation history to understand follow-up questions. If the CONTEXT completely lacks the answer, state that the documents do not contain the information. DO NOT append any disclaimers, apologies, or missing-information warnings to the end of a valid answer. DO NOT cite sources, print filenames, or echo the raw context in your answer — the system UI handles citations automatically. Provide ONLY your answer. Give the answer and immediately stop generating.
 
 ---
 
