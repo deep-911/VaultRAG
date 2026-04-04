@@ -52,7 +52,7 @@ python -m venv venv
 pip install -r requirements.txt
 
 # Start the FastAPI server
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload
 ```
 *The backend will now be running at http://localhost:8000. It will automatically create the `./chroma_db` directory on first run.*
 
