@@ -307,6 +307,8 @@ export default function App() {
                   ? 'Attach PDF or CSV (ingested as Executive-tagged chunks)'
                   : 'Unlock Executive mode to attach PDF or CSV'
               }
+              userRole={userRole}
+              onUserRoleChange={(role) => setUserRole(role as UserRole)}
             />
           </div>
         </main>
