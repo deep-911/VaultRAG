@@ -17,7 +17,7 @@ function TypingIndicator() {
   );
 }
 
-export function WelcomeState({ onSuggestionClick }: { onSuggestionClick: (s: string) => void }) {
+function WelcomeState({ onSuggestionClick }: { onSuggestionClick: (s: string) => void }) {
   const suggestions = [
     'What policies apply to my team this quarter?',
     'Summarize the latest financial figures we have on record.',

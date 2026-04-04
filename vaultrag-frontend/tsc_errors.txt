@@ -1,0 +1,12 @@
+components/fiels/Header.tsx(3,26): error TS2307: Cannot find module '../context/ThemeContext' or its corresponding type declarations.
+components/fiels/Header.tsx(4,34): error TS2307: Cannot find module './ExecutiveUnlockModal' or its corresponding type declarations.
+components/fiels/page.tsx(3,31): error TS2307: Cannot find module '../components/AmbientBackground' or its corresponding type declarations.
+components/fiels/page.tsx(4,24): error TS2307: Cannot find module '../components/CursorOrbs' or its corresponding type declarations.
+components/fiels/page.tsx(5,20): error TS2307: Cannot find module '../components/Header' or its corresponding type declarations.
+components/fiels/page.tsx(6,24): error TS2307: Cannot find module '../components/ChatWindow' or its corresponding type declarations.
+components/fiels/page.tsx(7,22): error TS2307: Cannot find module '../components/InputBar' or its corresponding type declarations.
+components/fiels/page.tsx(8,32): error TS2307: Cannot find module '../components/SearchingAnimation' or its corresponding type declarations.
+components/fiels/page.tsx(9,26): error TS2307: Cannot find module '../components/HistoryPanel' or its corresponding type declarations.
+components/fiels/page.tsx(10,31): error TS2307: Cannot find module '../lib/vaultragApi' or its corresponding type declarations.
+components/fiels/page.tsx(15,8): error TS2307: Cannot find module '../lib/vaultragApi' or its corresponding type declarations.
+components/fiels/page.tsx(281,56): error TS7006: Parameter 'role' implicitly has an 'any' type.

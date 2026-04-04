@@ -5,7 +5,7 @@ const API_BASE =
     process.env.NEXT_PUBLIC_VAULTRAG_API_URL) ||
   "http://127.0.0.1:8000";
 
-export function getApiBase(): string {
+function getApiBase(): string {
   return API_BASE.replace(/\/$/, "");
 }
 
@@ -68,7 +68,7 @@ export async function uploadExecutiveFile(file: File): Promise<void> {
   }
 }
 
-export const NO_RELEVANT_ANSWER = "No relevant information found.";
+const NO_RELEVANT_ANSWER = "No relevant information found.";
 
 export function isNoRelevantAnswer(text: string): boolean {
   const t = text.trim();
