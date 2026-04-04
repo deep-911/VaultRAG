@@ -46,8 +46,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   if (!open) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-panel settings-modal" ref={ref} role="dialog" aria-modal="true" aria-label="Settings">
+    <div className="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="modal-panel settings-modal relative w-full max-w-[650px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" ref={ref} role="dialog" aria-modal="true" aria-label="Settings">
 
         {/* Header */}
         <div className="modal-header">
