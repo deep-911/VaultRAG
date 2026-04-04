@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local / CI artifacts (do not commit)
+build_err.txt
+eslint_report.json
+testsprite_tests/tmp/
+
+# Prototype HTML exports
+stitch_desktop.html
+stitch_mobile.html

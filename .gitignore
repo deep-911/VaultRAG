@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Vector DB & local runtime data (do not commit)
+chroma_db/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Frontend build & deps (root may add tooling later)
+node_modules/
+
+# Prototype / scratch HTML at repo root
+stitch_ui.html

@@ -1,7 +1,17 @@
 import React from 'react';
 import { Shield, X } from 'lucide-react';
 
-export default function ExecutiveUnlockModal({ open, onClose, onConfirm }) {
+type ExecutiveUnlockModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+export default function ExecutiveUnlockModal({
+  open,
+  onClose,
+  onConfirm,
+}: ExecutiveUnlockModalProps) {
   if (!open) return null;
 
   return (

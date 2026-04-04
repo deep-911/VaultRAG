@@ -12,7 +12,8 @@ export function ThemeProvider({ children }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('oracle-theme');
+    const saved =
+      localStorage.getItem('vaultrag-theme') || localStorage.getItem('oracle-theme');
     if (saved) setTheme(saved);
     setMounted(true);
   }, []);
@@ -20,7 +21,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     if (mounted) {
       document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('oracle-theme', theme);
+      localStorage.setItem('vaultrag-theme', theme);
     }
   }, [theme, mounted]);
 

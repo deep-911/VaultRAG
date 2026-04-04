@@ -35,6 +35,10 @@ collection = chroma_client.get_or_create_collection(name="vault_docs")
 # Embedding model — loaded once at startup
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
+# Upload limits (PDF/CSV ingestion)
+UPLOAD_MAX_BYTES = 25 * 1024 * 1024  # 25 MiB raw file
+UPLOAD_MAX_CHUNKS = 2000
+
 # Retrieval: fetch extra, then filter/rerank; final count 3–4 (default 4)
 RETRIEVAL_FETCH_K = 12
 RETRIEVAL_TOP_K = 4
@@ -279,6 +283,12 @@ async def upload_file(file: UploadFile = File(...)):
     if not raw:
         raise HTTPException(status_code=422, detail="Empty file")
 
+    if len(raw) > UPLOAD_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large (max {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB)",
+        )
+
     kind = _detect_file_kind(file.filename or "", file.content_type, raw)
     if not kind:
         raise HTTPException(
@@ -304,16 +314,29 @@ async def upload_file(file: UploadFile = File(...)):
             detail="No text could be extracted from the file",
         )
 
+    if len(chunks) > UPLOAD_MAX_CHUNKS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Too many chunks after splitting ({len(chunks)}); max {UPLOAD_MAX_CHUNKS}",
+        )
+
+    def _encode_file_chunks(parts: list[str]) -> list:
+        return embedding_model.encode(parts, show_progress_bar=False).tolist()
+
     try:
-        embeddings = embedding_model.encode(chunks, show_progress_bar=False).tolist()
+        embeddings = await asyncio.to_thread(_encode_file_chunks, chunks)
         ids = [str(uuid.uuid4()) for _ in chunks]
         metadatas = [{"role": UPLOAD_ROLE} for _ in chunks]
-        collection.add(
-            ids=ids,
-            documents=chunks,
-            embeddings=embeddings,
-            metadatas=metadatas,
-        )
+
+        def _add_chunks() -> None:
+            collection.add(
+                ids=ids,
+                documents=chunks,
+                embeddings=embeddings,
+                metadatas=metadatas,
+            )
+
+        await asyncio.to_thread(_add_chunks)
     except Exception:
         raise HTTPException(
             status_code=500,
