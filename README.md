@@ -127,7 +127,7 @@ pip install -r requirements.txt
 If you are setting this up on a clean machine, open **PowerShell** and install Ollama via the official command:
 
 ```powershell
-irm [https://ollama.com/install.ps1](https://ollama.com/install.ps1) | iex
+irm https://ollama.com/install.ps1 | iex
 ```
 After installation of ollama proceed below
 In a **separate terminal**:
