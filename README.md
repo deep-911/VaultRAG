@@ -122,12 +122,16 @@ cd VaultRAG
 pip install -r requirements.txt
 ```
 
-### Step 3: Start Ollama & Pull the Model
+### Step 3: Install Ollama & Pull the Model
 
+If you are setting this up on a clean machine, open **PowerShell** and install Ollama via the official command:
+
+```powershell
+irm [https://ollama.com/install.ps1](https://ollama.com/install.ps1) | iex
 ```bash
 ollama serve
 ```
-
+After installation of ollama proceed below
 In a **separate terminal**:
 
 ```bash
