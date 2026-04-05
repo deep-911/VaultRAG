@@ -133,11 +133,10 @@ After installation of ollama proceed below
 In a **separate terminal**:
 
 ```bash
-ollama serve
-```
-
-```bash
 ollama pull phi3
+```
+```bash
+ollama serve
 ```
 
 > ⏳ The `phi3` model is ~2.3 GB. This only needs to be done once.
