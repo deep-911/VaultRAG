@@ -129,12 +129,12 @@ If you are setting this up on a clean machine, open **PowerShell** and install O
 ```powershell
 irm [https://ollama.com/install.ps1](https://ollama.com/install.ps1) | iex
 ```
+After installation of ollama proceed below
+In a **separate terminal**:
 
 ```bash
 ollama serve
 ```
-After installation of ollama proceed below
-In a **separate terminal**:
 
 ```bash
 ollama pull phi3
