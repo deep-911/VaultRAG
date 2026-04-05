@@ -128,6 +128,8 @@ If you are setting this up on a clean machine, open **PowerShell** and install O
 
 ```powershell
 irm [https://ollama.com/install.ps1](https://ollama.com/install.ps1) | iex
+```
+
 ```bash
 ollama serve
 ```
