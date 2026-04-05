@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, startTransition } from 'react';
-import { Paperclip, ArrowUp, X, FileText, Mic, MicOff, Volume2, VolumeX, Shield, Users, ChevronUp, Check } from 'lucide-react';
+import { Paperclip, ArrowUp, X, FileText, Mic, MicOff, Volume2, VolumeX, Shield, Users, ChevronUp, Check, FolderSearch, Loader2 } from 'lucide-react';
+import { scanLocalDirectory, type UserRole } from '../lib/vaultragApi';
 
 /** Minimal Web Speech API surface (Chromium `SpeechRecognition` / `webkitSpeechRecognition`). */
 type SpeechRecognitionResultRow = { isFinal: boolean; 0: { transcript: string } };
@@ -66,6 +67,41 @@ export default function InputBar({
   const [value, setValue] = useState('');
   const [roleDropOpen, setRoleDropOpen] = useState(false);
   const roleDropRef = useRef<HTMLDivElement>(null);
+
+  // Local Radar state
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanPath, setScanPath] = useState('');
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanMessage, setScanMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (scanOpen && scanInputRef.current) scanInputRef.current.focus();
+  }, [scanOpen]);
+
+  // Auto-dismiss scan toast after 4 seconds
+  useEffect(() => {
+    if (!scanMessage) return;
+    const t = setTimeout(() => setScanMessage(null), 4000);
+    return () => clearTimeout(t);
+  }, [scanMessage]);
+
+  const handleScanSubmit = async () => {
+    const trimmedPath = scanPath.trim();
+    if (!trimmedPath || scanLoading) return;
+    setScanLoading(true);
+    setScanMessage(null);
+    try {
+      const result = await scanLocalDirectory(trimmedPath, (userRole as UserRole) || 'Employee');
+      setScanMessage({ type: 'success', text: result.message });
+      setScanPath('');
+      setScanOpen(false);
+    } catch (err) {
+      setScanMessage({ type: 'error', text: err instanceof Error ? err.message : 'Scan failed' });
+    } finally {
+      setScanLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!roleDropOpen) return;
@@ -250,7 +286,51 @@ export default function InputBar({
         )}
       </div>
 
+      {/* Local Radar scan toast */}
+      {scanMessage && (
+        <div className={`scan-toast scan-toast--${scanMessage.type}`}>
+          <span>{scanMessage.text}</span>
+          <button className="scan-toast__close" onClick={() => setScanMessage(null)} aria-label="Dismiss">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <form className="input-bar__container" onSubmit={handleSubmit}>
+        {/* Local Radar inline path input */}
+        {scanOpen && (
+          <div className="scan-folder-bar">
+            <FolderSearch size={16} className="scan-folder-bar__icon" />
+            <input
+              ref={scanInputRef}
+              className="scan-folder-bar__input"
+              type="text"
+              placeholder="Paste local folder path, e.g. D:\\my-docs"
+              value={scanPath}
+              onChange={(e) => setScanPath(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScanSubmit(); } if (e.key === 'Escape') { setScanOpen(false); setScanPath(''); } }}
+              disabled={scanLoading}
+            />
+            <button
+              type="button"
+              className="scan-folder-bar__submit"
+              onClick={handleScanSubmit}
+              disabled={!scanPath.trim() || scanLoading}
+              aria-label="Start scan"
+            >
+              {scanLoading ? <Loader2 size={14} className="scan-folder-bar__spinner" /> : <ArrowUp size={14} />}
+            </button>
+            <button
+              type="button"
+              className="scan-folder-bar__cancel"
+              onClick={() => { setScanOpen(false); setScanPath(''); }}
+              aria-label="Cancel scan"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {attachedFiles && attachedFiles.length > 0 && (
           <div className="input-bar__attachments">
             {attachedFiles.map((file, idx) => (
@@ -280,6 +360,16 @@ export default function InputBar({
             disabled={disabled || attachDisabled}
           >
             <Paperclip />
+          </button>
+          <button
+            type="button"
+            className={`input-bar__action-btn ${scanOpen ? 'input-bar__action-btn--active' : ''}`}
+            title="Scan local folder (Local Radar)"
+            aria-label="Scan local folder"
+            onClick={() => setScanOpen(v => !v)}
+            disabled={disabled || scanLoading}
+          >
+            <FolderSearch />
           </button>
           <input
             ref={fileInputRef}

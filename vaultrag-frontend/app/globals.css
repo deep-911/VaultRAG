@@ -1836,6 +1836,192 @@ body {
   height: 18px;
 }
 
+/* --- Scan Folder Action Button Active State --- */
+.input-bar__action-btn--active {
+  color: var(--color-primary) !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+}
+
+/* ---------- Local Radar: Scan Folder Bar ---------- */
+.scan-folder-bar {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.05));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  animation: scan-bar-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .scan-folder-bar {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(139, 92, 246, 0.05));
+  border-bottom-color: rgba(79, 70, 229, 0.12);
+}
+
+@keyframes scan-bar-in {
+  from { opacity: 0; transform: translateY(4px); max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
+  to   { opacity: 1; transform: translateY(0); max-height: 80px; }
+}
+
+.scan-folder-bar__icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.scan-folder-bar__input {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+  font-family: var(--font-sans) !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+}
+
+.scan-folder-bar__input::placeholder {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.scan-folder-bar__input:disabled {
+  opacity: 0.5;
+}
+
+.scan-folder-bar__submit,
+.scan-folder-bar__cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.scan-folder-bar__submit {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: #fff;
+  box-shadow: 0 0 8px var(--color-primary-glow);
+}
+
+.scan-folder-bar__submit:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 0 0 14px var(--color-primary-glow);
+}
+
+.scan-folder-bar__submit:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.scan-folder-bar__cancel {
+  background: none;
+  color: var(--text-tertiary);
+}
+
+.scan-folder-bar__cancel:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .scan-folder-bar__cancel:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.scan-folder-bar__spinner {
+  animation: scan-spin 0.8s linear infinite;
+}
+
+@keyframes scan-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ---------- Local Radar: Toast Notification ---------- */
+.scan-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  animation: scan-toast-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-bottom: 6px;
+}
+
+@keyframes scan-toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.scan-toast--success {
+  background: rgba(16, 185, 129, 0.10);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
+[data-theme="light"] .scan-toast--success {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.20);
+  color: #059669;
+}
+
+.scan-toast--error {
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+[data-theme="light"] .scan-toast--error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.20);
+  color: #dc2626;
+}
+
+.scan-toast span {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.scan-toast__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.scan-toast__close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .scan-toast__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 /* ---------- Welcome State ---------- */
 .welcome {
   flex: 1;

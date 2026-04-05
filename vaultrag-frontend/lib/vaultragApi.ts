@@ -187,6 +187,49 @@ export async function uploadExecutiveFile(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Local Radar (directory scan)                                       */
+/* ------------------------------------------------------------------ */
+
+export type ScanDirectoryResult = {
+  message: string;
+  queued: number;
+  total_found: number;
+};
+
+/**
+ * Scan a local directory on the server machine and ingest all
+ * supported files (.pdf, .csv, .txt). Enforces a 30-file safety cap.
+ */
+export async function scanLocalDirectory(
+  directoryPath: string,
+  role: UserRole,
+): Promise<ScanDirectoryResult> {
+  const res = await fetch(`${getApiBase()}/scan-directory`, {
+    method: "POST",
+    headers: getAuthHeaders(role),
+    body: JSON.stringify({ directory_path: directoryPath, user_role: role }),
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (body?.detail) {
+        detail =
+          typeof body.detail === "string"
+            ? body.detail
+            : JSON.stringify(body.detail);
+      }
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail || `Scan failed (${res.status})`);
+  }
+
+  return res.json();
+}
+
+/* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 

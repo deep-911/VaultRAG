@@ -6,6 +6,7 @@ import uuid
 import logging
 import asyncio
 import sys
+from pathlib import Path
 from io import BytesIO, StringIO
 
 import httpx
@@ -74,7 +75,7 @@ UPLOAD_MAX_CHUNKS = 2000
 
 # Retrieval: fetch extra, then filter/rerank via Cross-Encoder
 RETRIEVAL_FETCH_K = 15
-RETRIEVAL_TOP_K = 5
+RETRIEVAL_TOP_K = 2
 
 _STOPWORDS = frozenset(
     """
@@ -286,6 +287,24 @@ class SearchRequest(BaseModel):
         return v
 
 
+class DirectoryScanRequest(BaseModel):
+    directory_path: str
+    user_role: str
+
+    @field_validator("user_role")
+    @classmethod
+    def validate_user_role(cls, v: str) -> str:
+        if v not in ("Employee", "Executive"):
+            raise ValueError("user_role must be 'Employee' or 'Executive'")
+        return v
+
+
+# Maximum files the Local Radar scan will accept before refusing
+LOCAL_RADAR_MAX_FILES = 30
+# Supported extensions for directory scanning
+LOCAL_RADAR_EXTENSIONS = {".pdf", ".csv", ".txt"}
+
+
 @app.get("/health")
 def health_check():
     return {"status": "VaultRAG Backend running"}
@@ -395,6 +414,89 @@ async def upload_file(
     background_tasks.add_task(_process_and_store_file, raw, filename, token_role, kind)
 
     return {"message": "Ingestion started in the background."}
+
+
+@app.post("/scan-directory", status_code=status.HTTP_202_ACCEPTED)
+async def scan_directory(
+    req: DirectoryScanRequest,
+    background_tasks: BackgroundTasks,
+    token_role: str = Depends(verify_token),
+):
+    """
+    Local Radar: traverse a local directory and ingest all supported files.
+    Enforces a safety cap of LOCAL_RADAR_MAX_FILES to prevent accidental
+    recursive root-directory scans.
+    """
+    root = Path(req.directory_path)
+    if not root.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Directory not found: {req.directory_path}",
+        )
+    if not root.is_dir():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Path is not a directory: {req.directory_path}",
+        )
+
+    # Collect matching files via recursive walk
+    matched_files: list[Path] = []
+    try:
+        for file_path in root.rglob("*"):
+            if file_path.is_file() and file_path.suffix.lower() in LOCAL_RADAR_EXTENSIONS:
+                matched_files.append(file_path)
+                # Early exit if we already exceed the cap
+                if len(matched_files) > LOCAL_RADAR_MAX_FILES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Found more than {LOCAL_RADAR_MAX_FILES} supported files. "
+                            f"Please target a more specific sub-directory to prevent "
+                            f"excessive ingestion."
+                        ),
+                    )
+    except HTTPException:
+        raise
+    except PermissionError:
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied while scanning the directory.",
+        )
+    except Exception as e:
+        logger.error(f"Error scanning directory {req.directory_path}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error while scanning the directory.",
+        )
+
+    if not matched_files:
+        raise HTTPException(
+            status_code=404,
+            detail="No supported files (.pdf, .csv, .txt) found in the specified directory.",
+        )
+
+    # Read and dispatch each file to the background ingestion pipeline
+    queued = 0
+    for fp in matched_files:
+        try:
+            raw = fp.read_bytes()
+            if len(raw) > UPLOAD_MAX_BYTES:
+                logger.warning(f"Skipping {fp.name}: exceeds {UPLOAD_MAX_BYTES // (1024*1024)} MiB limit")
+                continue
+            kind = fp.suffix.lstrip(".").lower()
+            background_tasks.add_task(
+                _process_and_store_file, raw, fp.name, token_role, kind,
+            )
+            queued += 1
+        except Exception as e:
+            logger.warning(f"Could not read {fp}: {e}")
+
+    logger.info(f"Local Radar: queued {queued}/{len(matched_files)} files from {req.directory_path}")
+    return {
+        "message": f"Local Radar scan complete. {queued} file(s) queued for ingestion.",
+        "queued": queued,
+        "total_found": len(matched_files),
+    }
 
 
 def _rbac_search(query: str, user_role: str) -> list[dict]:
