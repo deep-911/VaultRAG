@@ -316,7 +316,10 @@ def db_status():
 
 
 @app.post("/upload")
-async def upload_document(req: UploadRequest):
+async def upload_document(
+    req: UploadRequest,
+    token_role: str = Depends(verify_token),
+):
     try:
         embedding = await asyncio.to_thread(embedding_model.encode, req.content)
         embedding = embedding.tolist()
@@ -327,10 +330,10 @@ async def upload_document(req: UploadRequest):
             ids=[doc_id],
             documents=[req.content],
             embeddings=[embedding],
-            metadatas=[{"role": req.role, "source_document": "Direct Upload"}],
+            metadatas=[{"role": token_role, "source_document": "Direct Upload"}],
         )
 
-        return {"message": f"Document stored with role '{req.role}'", "id": doc_id}
+        return {"message": f"Document stored with role '{token_role}'", "id": doc_id}
     except Exception as e:
         logger.error(f"Error in upload_document: {e}")
         raise HTTPException(status_code=500, detail="Internal server error during upload")
@@ -535,9 +538,12 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
 
 
 @app.post("/search")
-async def search_documents(req: SearchRequest):
+async def search_documents(
+    req: SearchRequest,
+    token_role: str = Depends(verify_token),
+):
     try:
-        documents = await asyncio.to_thread(_rbac_search, req.query, req.user_role)
+        documents = await asyncio.to_thread(_rbac_search, req.query, token_role)
         return {"results": documents}
     except Exception as e:
         logger.error(f"Error in search_documents: {e}")
