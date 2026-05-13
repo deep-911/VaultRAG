@@ -504,6 +504,10 @@ async def scan_directory(
 
 def _rbac_search(query: str, user_role: str) -> list[dict]:
     """RBAC-filtered vector search with Cross-Encoder semantic reranking."""
+    total_documents = collection.count()
+    if total_documents == 0:
+        return []
+
     if user_role == "Employee":
         where_filter = {"role": "Employee"}
     else:
@@ -513,7 +517,7 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
 
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=min(RETRIEVAL_FETCH_K, max(collection.count(), 1)),
+        n_results=min(RETRIEVAL_FETCH_K, total_documents),
         where=where_filter,
         include=["documents", "metadatas"],
     )
