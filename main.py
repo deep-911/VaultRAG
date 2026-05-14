@@ -14,7 +14,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Uplo
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 import chromadb
 import torch
 from sentence_transformers import SentenceTransformer, CrossEncoder
@@ -270,14 +270,21 @@ class UploadRequest(BaseModel):
 
 
 class ChatHistoryItem(BaseModel):
-    role: str       # "user" or "system"
+    role: str       # "user" or "assistant"
     text: str
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in ("user", "assistant"):
+            raise ValueError("role must be 'user' or 'assistant'")
+        return v
 
 
 class SearchRequest(BaseModel):
     query: str
     user_role: str
-    chat_history: list[ChatHistoryItem] = []
+    chat_history: list[ChatHistoryItem] = Field(default_factory=list)
 
     @field_validator("user_role")
     @classmethod

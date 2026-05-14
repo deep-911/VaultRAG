@@ -206,7 +206,10 @@ export default function App() {
         const recentMessages = currentConv ? currentConv.messages : [];
         const chatHistory: ChatHistoryItem[] = recentMessages
           .slice(-4)
-          .map((m) => ({ role: m.role, text: m.text }));
+          .map((m) => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            text: m.text,
+          }));
 
         // --- Add an empty streaming message placeholder ---
         appendSystem({

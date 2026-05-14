@@ -12,7 +12,7 @@ function getApiBase(): string {
 }
 
 export type ChatHistoryItem = {
-  role: "user" | "system";
+  role: "user" | "assistant";
   text: string;
 };
 
