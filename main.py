@@ -246,14 +246,16 @@ def _detect_file_kind(filename: str, content_type: str | None, data: bytes) -> s
     """Return 'pdf', 'csv', 'txt', or None if unsupported."""
     name = (filename or "").lower()
     ct = (content_type or "").lower()
+    # PDFs need a valid signature so mislabeled uploads fail fast instead of
+    # being accepted and then dying later in background ingestion.
     if name.endswith(".pdf") or ct == "application/pdf":
+        return "pdf" if _sniff_pdf(data) else None
+    if _sniff_pdf(data):
         return "pdf"
     if name.endswith(".csv") or "csv" in ct or ct in ("text/csv", "application/csv"):
         return "csv"
     if name.endswith(".txt") or ct == "text/plain":
         return "txt"
-    if _sniff_pdf(data):
-        return "pdf"
     return None
 
 
