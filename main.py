@@ -259,6 +259,21 @@ def _detect_file_kind(filename: str, content_type: str | None, data: bytes) -> s
     return None
 
 
+def _prepare_local_radar_file(file_path: Path) -> tuple[bytes, str] | None:
+    """Read a scanned file and confirm it matches a supported ingestible type."""
+    raw = file_path.read_bytes()
+    if len(raw) > UPLOAD_MAX_BYTES:
+        logger.warning(f"Skipping {file_path.name}: exceeds {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB limit")
+        return None
+
+    kind = _detect_file_kind(file_path.name, None, raw)
+    if not kind:
+        logger.warning(f"Skipping {file_path.name}: unsupported or invalid file contents")
+        return None
+
+    return raw, kind
+
+
 class UploadRequest(BaseModel):
     content: str
     role: str
@@ -491,11 +506,10 @@ async def scan_directory(
     queued = 0
     for fp in matched_files:
         try:
-            raw = fp.read_bytes()
-            if len(raw) > UPLOAD_MAX_BYTES:
-                logger.warning(f"Skipping {fp.name}: exceeds {UPLOAD_MAX_BYTES // (1024*1024)} MiB limit")
+            prepared = _prepare_local_radar_file(fp)
+            if not prepared:
                 continue
-            kind = fp.suffix.lstrip(".").lower()
+            raw, kind = prepared
             background_tasks.add_task(
                 _process_and_store_file, raw, fp.name, token_role, kind,
             )
