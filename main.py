@@ -517,6 +517,15 @@ async def scan_directory(
         except Exception as e:
             logger.warning(f"Could not read {fp}: {e}")
 
+    if queued == 0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Supported files were found, but none could be queued. "
+                "Ensure each file is a valid PDF, CSV, or TXT and within the size limit."
+            ),
+        )
+
     logger.info(f"Local Radar: queued {queued}/{len(matched_files)} files from {req.directory_path}")
     return {
         "message": f"Local Radar scan complete. {queued} file(s) queued for ingestion.",
