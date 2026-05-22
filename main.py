@@ -411,6 +411,12 @@ async def upload_file(
     Accept PDF or CSV chunk by chunk up to the memory limit.
     Offload embedding and storage to a background task so UI doesn't block.
     """
+    if token_role != UPLOAD_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Executive role may upload files",
+        )
+
     raw_buffer = bytearray()
     try:
         while chunk := await file.read(1024 * 1024):  # 1MB chunks
