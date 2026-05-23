@@ -460,6 +460,12 @@ async def scan_directory(
     Enforces a safety cap of LOCAL_RADAR_MAX_FILES to prevent accidental
     recursive root-directory scans.
     """
+    if token_role != UPLOAD_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Executive role may scan local directories",
+        )
+
     root = Path(req.directory_path)
     if not root.exists():
         raise HTTPException(

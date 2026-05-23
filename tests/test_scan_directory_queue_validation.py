@@ -65,14 +65,28 @@ def load_scan_directory():
         "LOCAL_RADAR_EXTENSIONS": {".pdf", ".csv", ".txt"},
         "LOCAL_RADAR_MAX_FILES": 30,
         "UPLOAD_MAX_BYTES": 1024,
+        "UPLOAD_ROLE": "Executive",
         "_process_and_store_file": object(),
         "logger": StubLogger(),
+        "status": SimpleNamespace(HTTP_403_FORBIDDEN=403),
     }
     exec(compile(isolated_module, filename="main.py", mode="exec"), namespace)
     return namespace["scan_directory"]
 
 
 class ScanDirectoryQueueValidationTests(unittest.TestCase):
+    def test_rejects_employee_scans_before_touching_the_filesystem(self):
+        scan_directory = load_scan_directory()
+        req = SimpleNamespace(directory_path="Z:\\should-not-be-read")
+        background_tasks = StubBackgroundTasks()
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(scan_directory(req, background_tasks, "Employee"))
+
+        self.assertEqual(ctx.exception.status_code, 403)
+        self.assertEqual(ctx.exception.detail, "Only Executive role may scan local directories")
+        self.assertEqual(background_tasks.tasks, [])
+
     def test_rejects_when_supported_files_are_found_but_none_queue(self):
         scan_directory = load_scan_directory()
 
@@ -84,7 +98,7 @@ class ScanDirectoryQueueValidationTests(unittest.TestCase):
             background_tasks = StubBackgroundTasks()
 
             with self.assertRaises(HTTPException) as ctx:
-                asyncio.run(scan_directory(req, background_tasks, "Employee"))
+                asyncio.run(scan_directory(req, background_tasks, "Executive"))
 
         self.assertEqual(ctx.exception.status_code, 422)
         self.assertIn("none could be queued", ctx.exception.detail)
@@ -100,7 +114,7 @@ class ScanDirectoryQueueValidationTests(unittest.TestCase):
             req = SimpleNamespace(directory_path=tmpdir)
             background_tasks = StubBackgroundTasks()
 
-            result = asyncio.run(scan_directory(req, background_tasks, "Employee"))
+            result = asyncio.run(scan_directory(req, background_tasks, "Executive"))
 
         self.assertEqual(result["queued"], 1)
         self.assertEqual(result["total_found"], 1)
