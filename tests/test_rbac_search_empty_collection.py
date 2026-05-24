@@ -1,5 +1,6 @@
 import ast
 import copy
+import re
 import unittest
 from pathlib import Path
 
@@ -8,19 +9,43 @@ def load_rbac_search():
     source = Path("main.py").read_text(encoding="utf-8")
     module = ast.parse(source, filename="main.py")
 
-    target = None
+    wanted_names = {
+        "_extract_query_keywords",
+        "_keyword_overlap_count",
+        "_filter_by_similarity",
+        "_rerank_by_keywords",
+        "_rbac_search",
+    }
+    wanted_nodes = []
     for node in module.body:
-        if isinstance(node, ast.FunctionDef) and node.name == "_rbac_search":
-            target = copy.deepcopy(node)
-            break
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in {
+                    "_STOPWORDS",
+                    "RETRIEVAL_FETCH_K",
+                    "RETRIEVAL_TOP_K",
+                    "RETRIEVAL_MAX_DISTANCE_ABSOLUTE",
+                    "RETRIEVAL_MAX_DISTANCE_DELTA",
+                }:
+                    wanted_nodes.append(copy.deepcopy(node))
+                    break
+        elif isinstance(node, ast.FunctionDef) and node.name in wanted_names:
+            wanted_nodes.append(copy.deepcopy(node))
 
-    if target is None:
-        raise AssertionError("Could not locate _rbac_search in main.py")
+    if not wanted_nodes:
+        raise AssertionError("Could not locate _rbac_search helper set in main.py")
 
-    isolated_module = ast.Module(body=[target], type_ignores=[])
+    isolated_module = ast.Module(body=wanted_nodes, type_ignores=[])
     ast.fix_missing_locations(isolated_module)
 
-    namespace = {"RETRIEVAL_FETCH_K": 15, "RETRIEVAL_TOP_K": 2}
+    class LoggerStub:
+        def warning(self, *args, **kwargs):
+            pass
+
+    namespace = {
+        "re": re,
+        "logger": LoggerStub(),
+    }
     exec(compile(isolated_module, filename="main.py", mode="exec"), namespace)
     return namespace["_rbac_search"], namespace
 

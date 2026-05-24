@@ -76,6 +76,8 @@ UPLOAD_MAX_CHUNKS = 2000
 # Retrieval: fetch extra, then filter/rerank via Cross-Encoder
 RETRIEVAL_FETCH_K = 15
 RETRIEVAL_TOP_K = 2
+RETRIEVAL_MAX_DISTANCE_ABSOLUTE = 1.35
+RETRIEVAL_MAX_DISTANCE_DELTA = 0.30
 
 _STOPWORDS = frozenset(
     """
@@ -555,7 +557,7 @@ async def scan_directory(
 
 
 def _rbac_search(query: str, user_role: str) -> list[dict]:
-    """RBAC-filtered vector search with Cross-Encoder semantic reranking."""
+    """RBAC-filtered vector search with distance gating and semantic reranking."""
     total_documents = collection.count()
     if total_documents == 0:
         return []
@@ -571,25 +573,50 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
         query_embeddings=[query_embedding],
         n_results=min(RETRIEVAL_FETCH_K, total_documents),
         where=where_filter,
-        include=["documents", "metadatas"],
+        include=["documents", "metadatas", "distances"],
     )
 
     raw_texts = results.get("documents", [[]])[0] or []
     raw_meta = results.get("metadatas", [[]])[0] or []
+    raw_distances = results.get("distances", [[]])[0] or []
 
     if not raw_texts:
         return []
 
-    raw_docs = [{"text": t, "source_document": m.get("source_document", "Unknown Source") if m else "Unknown Source"} for t, m in zip(raw_texts, raw_meta)]
+    raw_docs = [
+        {
+            "text": text,
+            "source_document": meta.get("source_document", "Unknown Source") if meta else "Unknown Source",
+        }
+        for text, meta in zip(raw_texts, raw_meta)
+        if text and text.strip()
+    ]
+    if not raw_docs:
+        return []
 
-    # Cross-Encoder Reranking
-    pairs = [[query, doc["text"]] for doc in raw_docs]
-    scores = cross_encoder_model.predict(pairs)
-    
+    if len(raw_distances) != len(raw_docs):
+        raw_distances = [0.0] * len(raw_docs)
+
+    filtered_docs, filtered_distances = _filter_by_similarity(raw_docs, raw_distances)
+    if not filtered_docs:
+        return []
+
+    keywords = _extract_query_keywords(query)
+    candidate_docs = _rerank_by_keywords(filtered_docs, filtered_distances, keywords)
+    if not candidate_docs:
+        candidate_docs = filtered_docs[:RETRIEVAL_TOP_K]
+
+    pairs = [[query, doc["text"]] for doc in candidate_docs]
+    try:
+        scores = cross_encoder_model.predict(pairs)
+    except Exception as exc:
+        logger.warning("Cross-encoder rerank failed, using pre-ranked retrieval order: %s", exc)
+        return candidate_docs[:RETRIEVAL_TOP_K]
+
     # Sort docs by score descending
-    scored_docs = list(zip(raw_docs, scores))
+    scored_docs = list(zip(candidate_docs, scores))
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    
+
     return [doc for doc, score in scored_docs][:RETRIEVAL_TOP_K]
 
 
