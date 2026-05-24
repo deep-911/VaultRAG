@@ -303,6 +303,14 @@ class SearchRequest(BaseModel):
     user_role: str
     chat_history: list[ChatHistoryItem] = Field(default_factory=list)
 
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, v: str) -> str:
+        normalized = v.strip()
+        if not normalized:
+            raise ValueError("query must not be empty")
+        return normalized
+
     @field_validator("user_role")
     @classmethod
     def validate_user_role(cls, v: str) -> str:

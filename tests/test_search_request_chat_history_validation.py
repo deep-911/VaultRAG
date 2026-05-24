@@ -31,6 +31,23 @@ def load_search_models():
 
 
 class SearchRequestChatHistoryValidationTests(unittest.TestCase):
+    def test_strips_query_whitespace(self):
+        search_request = load_search_models()
+        req = search_request(
+            query="  summarize revenue  ",
+            user_role="Employee",
+        )
+
+        self.assertEqual(req.query, "summarize revenue")
+
+    def test_rejects_blank_query(self):
+        search_request = load_search_models()
+        with self.assertRaises(ValidationError):
+            search_request(
+                query="   \n\t  ",
+                user_role="Employee",
+            )
+
     def test_accepts_user_and_assistant_roles(self):
         search_request = load_search_models()
         req = search_request(
