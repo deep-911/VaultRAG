@@ -476,16 +476,23 @@ async def scan_directory(
             detail="Only Executive role may scan local directories",
         )
 
-    root = Path(req.directory_path)
+    normalized_directory_path = req.directory_path.strip()
+    if not normalized_directory_path:
+        raise HTTPException(
+            status_code=422,
+            detail="directory_path must not be empty",
+        )
+
+    root = Path(normalized_directory_path)
     if not root.exists():
         raise HTTPException(
             status_code=400,
-            detail=f"Directory not found: {req.directory_path}",
+            detail=f"Directory not found: {normalized_directory_path}",
         )
     if not root.is_dir():
         raise HTTPException(
             status_code=400,
-            detail=f"Path is not a directory: {req.directory_path}",
+            detail=f"Path is not a directory: {normalized_directory_path}",
         )
 
     # Collect matching files via recursive walk
@@ -512,7 +519,7 @@ async def scan_directory(
             detail="Permission denied while scanning the directory.",
         )
     except Exception as e:
-        logger.error(f"Error scanning directory {req.directory_path}: {e}")
+        logger.error(f"Error scanning directory {normalized_directory_path}: {e}")
         raise HTTPException(
             status_code=500,
             detail="Unexpected error while scanning the directory.",
@@ -548,7 +555,7 @@ async def scan_directory(
             ),
         )
 
-    logger.info(f"Local Radar: queued {queued}/{len(matched_files)} files from {req.directory_path}")
+    logger.info(f"Local Radar: queued {queued}/{len(matched_files)} files from {normalized_directory_path}")
     return {
         "message": f"Local Radar scan complete. {queued} file(s) queued for ingestion.",
         "queued": queued,

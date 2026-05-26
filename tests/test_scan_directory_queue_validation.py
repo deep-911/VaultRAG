@@ -87,6 +87,18 @@ class ScanDirectoryQueueValidationTests(unittest.TestCase):
         self.assertEqual(ctx.exception.detail, "Only Executive role may scan local directories")
         self.assertEqual(background_tasks.tasks, [])
 
+    def test_rejects_blank_directory_path_before_filesystem_access(self):
+        scan_directory = load_scan_directory()
+        req = SimpleNamespace(directory_path="   \n\t  ")
+        background_tasks = StubBackgroundTasks()
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(scan_directory(req, background_tasks, "Executive"))
+
+        self.assertEqual(ctx.exception.status_code, 422)
+        self.assertEqual(ctx.exception.detail, "directory_path must not be empty")
+        self.assertEqual(background_tasks.tasks, [])
+
     def test_rejects_when_supported_files_are_found_but_none_queue(self):
         scan_directory = load_scan_directory()
 
