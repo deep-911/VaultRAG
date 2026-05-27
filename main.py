@@ -280,6 +280,14 @@ class UploadRequest(BaseModel):
     content: str
     role: str
 
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        normalized = v.strip()
+        if not normalized:
+            raise ValueError("content must not be empty")
+        return normalized
+
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str) -> str:
