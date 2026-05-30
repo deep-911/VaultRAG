@@ -599,6 +599,7 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
         return []
 
     raw_docs = []
+    raw_doc_distances: list[float] = []
     for idx, text in enumerate(raw_texts):
         if not text or not text.strip():
             continue
@@ -609,13 +610,15 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
                 "source_document": meta.get("source_document", "Unknown Source") if meta else "Unknown Source",
             }
         )
+        if idx < len(raw_distances):
+            raw_doc_distances.append(raw_distances[idx])
     if not raw_docs:
         return []
 
-    if len(raw_distances) != len(raw_docs):
-        raw_distances = [0.0] * len(raw_docs)
+    if len(raw_doc_distances) != len(raw_docs):
+        raw_doc_distances = [0.0] * len(raw_docs)
 
-    filtered_docs, filtered_distances = _filter_by_similarity(raw_docs, raw_distances)
+    filtered_docs, filtered_distances = _filter_by_similarity(raw_docs, raw_doc_distances)
     if not filtered_docs:
         return []
 
