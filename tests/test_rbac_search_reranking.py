@@ -134,6 +134,33 @@ class RbacSearchRerankingTests(unittest.TestCase):
 
         self.assertEqual(result, [])
 
+    def test_preserves_documents_when_metadata_entries_are_missing(self):
+        rbac_search, namespace = load_rbac_search_components()
+        namespace["collection"] = FakeCollection(
+            {
+                "documents": [[
+                    "Revenue increased 22 percent in Q4 and margin improved.",
+                    "The soccer team won the weekend tournament.",
+                ]],
+                "metadatas": [[]],
+                "distances": [[0.18, 0.21]],
+            }
+        )
+        namespace["embedding_model"] = FakeEmbeddingModel()
+        namespace["cross_encoder_model"] = FakeCrossEncoder([0.93])
+
+        result = rbac_search("What drove revenue growth?", "Employee")
+
+        self.assertEqual(
+            result,
+            [
+                {
+                    "text": "Revenue increased 22 percent in Q4 and margin improved.",
+                    "source_document": "Unknown Source",
+                }
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

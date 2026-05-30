@@ -598,14 +598,17 @@ def _rbac_search(query: str, user_role: str) -> list[dict]:
     if not raw_texts:
         return []
 
-    raw_docs = [
-        {
-            "text": text,
-            "source_document": meta.get("source_document", "Unknown Source") if meta else "Unknown Source",
-        }
-        for text, meta in zip(raw_texts, raw_meta)
-        if text and text.strip()
-    ]
+    raw_docs = []
+    for idx, text in enumerate(raw_texts):
+        if not text or not text.strip():
+            continue
+        meta = raw_meta[idx] if idx < len(raw_meta) else None
+        raw_docs.append(
+            {
+                "text": text,
+                "source_document": meta.get("source_document", "Unknown Source") if meta else "Unknown Source",
+            }
+        )
     if not raw_docs:
         return []
 
