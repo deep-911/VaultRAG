@@ -161,6 +161,38 @@ class RbacSearchRerankingTests(unittest.TestCase):
             ],
         )
 
+    def test_preserves_distance_alignment_when_blank_documents_are_skipped(self):
+        rbac_search, namespace = load_rbac_search_components()
+        namespace["collection"] = FakeCollection(
+            {
+                "documents": [[
+                    "Revenue increased 22 percent in Q4 and margin improved.",
+                    "   ",
+                    "General office policy overview for all staff.",
+                ]],
+                "metadatas": [[
+                    {"source_document": "earnings.pdf"},
+                    {"source_document": "blank.txt"},
+                    {"source_document": "policy.txt"},
+                ]],
+                "distances": [[0.18, 0.19, 0.72]],
+            }
+        )
+        namespace["embedding_model"] = FakeEmbeddingModel()
+        namespace["cross_encoder_model"] = FakeCrossEncoder([0.97])
+
+        result = rbac_search("What drove revenue growth?", "Employee")
+
+        self.assertEqual(
+            result,
+            [
+                {
+                    "text": "Revenue increased 22 percent in Q4 and margin improved.",
+                    "source_document": "earnings.pdf",
+                }
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
