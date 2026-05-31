@@ -46,12 +46,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (conversations.length > 0) {
-      try {
+    try {
+      if (conversations.length > 0) {
         localStorage.setItem('vaultrag_conversations', JSON.stringify(conversations));
-      } catch (e) {
-        console.error("Failed to save conversations", e);
+      } else {
+        localStorage.removeItem('vaultrag_conversations');
       }
+    } catch (e) {
+      console.error("Failed to save conversations", e);
     }
   }, [conversations]);
 
