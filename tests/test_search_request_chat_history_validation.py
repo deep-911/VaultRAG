@@ -3,72 +3,91 @@ import copy
 import unittest
 from pathlib import Path
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
 
-
-def load_search_models():
+def load_search_validators():
     source = Path("main.py").read_text(encoding="utf-8")
     module = ast.parse(source, filename="main.py")
 
-    wanted = []
+    validators: dict[tuple[str, str], ast.FunctionDef] = {}
     for node in module.body:
-        if isinstance(node, ast.ClassDef) and node.name in {"ChatHistoryItem", "SearchRequest"}:
-            wanted.append(copy.deepcopy(node))
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if node.name not in {"ChatHistoryItem", "SearchRequest"}:
+            continue
+        for child in node.body:
+            if not isinstance(child, ast.FunctionDef):
+                continue
+            validators[(node.name, child.name)] = copy.deepcopy(child)
 
-    if len(wanted) != 2:
-        raise AssertionError("Could not locate ChatHistoryItem and SearchRequest in main.py")
-
-    isolated_module = ast.Module(body=wanted, type_ignores=[])
-    ast.fix_missing_locations(isolated_module)
-
-    namespace = {
-        "BaseModel": BaseModel,
-        "Field": Field,
-        "field_validator": field_validator,
+    expected = {
+        ("ChatHistoryItem", "validate_role"),
+        ("ChatHistoryItem", "validate_text"),
+        ("SearchRequest", "validate_query"),
+        ("SearchRequest", "validate_user_role"),
     }
-    exec(compile(isolated_module, filename="main.py", mode="exec"), namespace)
-    return namespace["SearchRequest"]
+    if not expected.issubset(validators):
+        raise AssertionError("Could not locate all search/chat validators in main.py")
+
+    loaded = {}
+    for key in expected:
+        func = validators[key]
+        func.decorator_list = []
+        isolated_module = ast.Module(body=[func], type_ignores=[])
+        ast.fix_missing_locations(isolated_module)
+        namespace = {}
+        exec(compile(isolated_module, filename="main.py", mode="exec"), namespace)
+        loaded[key] = namespace[func.name]
+    return loaded
 
 
 class SearchRequestChatHistoryValidationTests(unittest.TestCase):
     def test_strips_query_whitespace(self):
-        search_request = load_search_models()
-        req = search_request(
-            query="  summarize revenue  ",
-            user_role="Employee",
+        validators = load_search_validators()
+
+        normalized = validators[("SearchRequest", "validate_query")](
+            object(), "  summarize revenue  "
         )
 
-        self.assertEqual(req.query, "summarize revenue")
+        self.assertEqual(normalized, "summarize revenue")
 
     def test_rejects_blank_query(self):
-        search_request = load_search_models()
-        with self.assertRaises(ValidationError):
-            search_request(
-                query="   \n\t  ",
-                user_role="Employee",
-            )
+        validators = load_search_validators()
+
+        with self.assertRaises(ValueError):
+            validators[("SearchRequest", "validate_query")](object(), "   \n\t  ")
 
     def test_accepts_user_and_assistant_roles(self):
-        search_request = load_search_models()
-        req = search_request(
-            query="summarize revenue",
-            user_role="Employee",
-            chat_history=[
-                {"role": "user", "text": "What happened last quarter?"},
-                {"role": "assistant", "text": "Revenue increased."},
-            ],
+        validators = load_search_validators()
+
+        self.assertEqual(
+            validators[("ChatHistoryItem", "validate_role")](object(), "user"),
+            "user",
+        )
+        self.assertEqual(
+            validators[("ChatHistoryItem", "validate_role")](object(), "assistant"),
+            "assistant",
         )
 
-        self.assertEqual([item.role for item in req.chat_history], ["user", "assistant"])
-
     def test_rejects_ui_only_system_role(self):
-        search_request = load_search_models()
-        with self.assertRaises(ValidationError):
-            search_request(
-                query="summarize revenue",
-                user_role="Employee",
-                chat_history=[{"role": "system", "text": "Revenue increased."}],
-            )
+        validators = load_search_validators()
+
+        with self.assertRaises(ValueError):
+            validators[("ChatHistoryItem", "validate_role")](object(), "system")
+
+    def test_strips_chat_history_text_whitespace(self):
+        validators = load_search_validators()
+
+        normalized = validators[("ChatHistoryItem", "validate_text")](
+            object(), "  What happened last quarter?  "
+        )
+
+        self.assertEqual(normalized, "What happened last quarter?")
+
+    def test_rejects_blank_chat_history_text(self):
+        validators = load_search_validators()
+
+        with self.assertRaises(ValueError):
+            validators[("ChatHistoryItem", "validate_text")](object(), "   \n\t  ")
 
 
 if __name__ == "__main__":

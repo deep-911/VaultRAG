@@ -307,6 +307,14 @@ class ChatHistoryItem(BaseModel):
             raise ValueError("role must be 'user' or 'assistant'")
         return v
 
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, v: str) -> str:
+        normalized = v.strip()
+        if not normalized:
+            raise ValueError("text must not be empty")
+        return normalized
+
 
 class SearchRequest(BaseModel):
     query: str
