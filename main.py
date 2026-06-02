@@ -72,6 +72,7 @@ cross_encoder_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", devic
 # Upload limits (PDF/CSV ingestion)
 UPLOAD_MAX_BYTES = 25 * 1024 * 1024  # 25 MiB raw file
 UPLOAD_MAX_CHUNKS = 2000
+MAX_CHAT_HISTORY_ITEMS = 20
 
 # Retrieval: fetch extra, then filter/rerank via Cross-Encoder
 RETRIEVAL_FETCH_K = 15
@@ -319,7 +320,10 @@ class ChatHistoryItem(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     user_role: str
-    chat_history: list[ChatHistoryItem] = Field(default_factory=list)
+    chat_history: list[ChatHistoryItem] = Field(
+        default_factory=list,
+        max_length=MAX_CHAT_HISTORY_ITEMS,
+    )
 
     @field_validator("query")
     @classmethod
