@@ -345,6 +345,14 @@ class DirectoryScanRequest(BaseModel):
     directory_path: str
     user_role: str
 
+    @field_validator("directory_path")
+    @classmethod
+    def validate_directory_path(cls, v: str) -> str:
+        normalized = v.strip()
+        if not normalized:
+            raise ValueError("directory_path must not be empty")
+        return normalized
+
     @field_validator("user_role")
     @classmethod
     def validate_user_role(cls, v: str) -> str:
