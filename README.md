@@ -171,7 +171,7 @@ Navigate to **[http://localhost:3000](http://localhost:3000)** in your browser. 
 
 ---
 
-## 🧑‍⚖️ Judge's Testing Guide
+## 🧑‍⚖️ Testing Guide
 
 ### The "Shadow Filter" Test — Proving Physical Data Isolation
 
