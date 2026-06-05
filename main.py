@@ -30,7 +30,7 @@ if not EXECUTIVE_SECRET_TOKEN or not EMPLOYEE_SECRET_TOKEN:
     logger.error("CRITICAL: Missing required secret tokens in environment variables. Set EXECUTIVE_SECRET_TOKEN and EMPLOYEE_SECRET_TOKEN.")
     sys.exit(1)
 
-_bearer_scheme = HTTPBearer()
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 # Map tokens to scoped roles
 _TOKEN_ROLE_MAP = {
@@ -40,9 +40,14 @@ _TOKEN_ROLE_MAP = {
 
 
 async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> str:
     """Scoped RBAC gate: return the role associated with the Bearer token."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized - Missing Token",
+        )
     role = _TOKEN_ROLE_MAP.get(credentials.credentials)
     if role is None:
         raise HTTPException(
