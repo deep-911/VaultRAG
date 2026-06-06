@@ -454,42 +454,50 @@ async def upload_file(
     Accept PDF or CSV chunk by chunk up to the memory limit.
     Offload embedding and storage to a background task so UI doesn't block.
     """
-    if token_role != UPLOAD_ROLE:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Executive role may upload files",
-        )
-
-    raw_buffer = bytearray()
     try:
-        while chunk := await file.read(1024 * 1024):  # 1MB chunks
-            raw_buffer.extend(chunk)
-            if len(raw_buffer) > UPLOAD_MAX_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail=f"File too large (max {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB)",
-                )
-        raw = bytes(raw_buffer)
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=400, detail="Could not read uploaded file")
+        if token_role != UPLOAD_ROLE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only Executive role may upload files",
+            )
 
-    if not raw:
-        raise HTTPException(status_code=422, detail="Empty file")
+        raw_buffer = bytearray()
+        try:
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                raw_buffer.extend(chunk)
+                if len(raw_buffer) > UPLOAD_MAX_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"File too large (max {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB)",
+                    )
+            raw = bytes(raw_buffer)
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Could not read uploaded file")
 
-    kind = _detect_file_kind(file.filename or "", file.content_type, raw)
-    if not kind:
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF, CSV, or TXT files are supported",
-        )
+        if not raw:
+            raise HTTPException(status_code=422, detail="Empty file")
 
-    # Hand off to background task
-    filename = file.filename or "unknown"
-    background_tasks.add_task(_process_and_store_file, raw, filename, token_role, kind)
+        kind = _detect_file_kind(file.filename or "", file.content_type, raw)
+        if not kind:
+            raise HTTPException(
+                status_code=400,
+                detail="Only PDF, CSV, or TXT files are supported",
+            )
 
-    return {"message": "Ingestion started in the background."}
+        # Hand off to background task
+        filename = file.filename or "unknown"
+        background_tasks.add_task(_process_and_store_file, raw, filename, token_role, kind)
+
+        return {"message": "Ingestion started in the background."}
+    finally:
+        close = getattr(file, "close", None)
+        if close is not None:
+            try:
+                await close()
+            except Exception:
+                pass
 
 
 @app.post("/scan-directory", status_code=status.HTTP_202_ACCEPTED)

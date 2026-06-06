@@ -34,8 +34,14 @@ class UnreadableUploadFile:
     filename = "report.pdf"
     content_type = "application/pdf"
 
+    def __init__(self):
+        self.closed = False
+
     async def read(self, size: int):
         raise AssertionError("Employee uploads should be rejected before reading file contents")
+
+    async def close(self):
+        self.closed = True
 
 
 class FakeUploadFile:
@@ -43,11 +49,15 @@ class FakeUploadFile:
         self._chunks = list(chunks)
         self.filename = filename
         self.content_type = content_type
+        self.closed = False
 
     async def read(self, size: int):
         if self._chunks:
             return self._chunks.pop(0)
         return b""
+
+    async def close(self):
+        self.closed = True
 
 
 def load_upload_file():
@@ -93,12 +103,13 @@ class UploadFileRoleRestrictionTests(unittest.TestCase):
     def test_rejects_employee_uploads_before_reading_file(self):
         upload_file, _ = load_upload_file()
         background_tasks = BackgroundTasks()
+        unreadable_file = UnreadableUploadFile()
 
         with self.assertRaises(HTTPException) as ctx:
             asyncio.run(
                 upload_file(
                     background_tasks,
-                    UnreadableUploadFile(),
+                    unreadable_file,
                     "Employee",
                 )
             )
@@ -106,6 +117,7 @@ class UploadFileRoleRestrictionTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertEqual(ctx.exception.detail, "Only Executive role may upload files")
         self.assertEqual(background_tasks.tasks, [])
+        self.assertTrue(unreadable_file.closed)
 
     def test_queues_executive_uploads(self):
         upload_file, namespace = load_upload_file()
@@ -119,6 +131,7 @@ class UploadFileRoleRestrictionTests(unittest.TestCase):
         func, args = background_tasks.tasks[0]
         self.assertIs(func, namespace["_process_and_store_file"])
         self.assertEqual(args[1:], ("report.pdf", "Executive", "pdf"))
+        self.assertTrue(fake_file.closed)
 
 
 if __name__ == "__main__":
